@@ -1,0 +1,14 @@
+{
+  "name": "craftmind-fishing",
+  "version": "1.0.0",
+  "description": "AI-powered Minecraft fishing — dynamic ecosystems, intelligent fish, bot fishermen",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node tests/test-all.js",
+    "demo": "node examples/standalone-fishing.js",
+    "bot-demo": "node examples/bot-fisherman.js"
+  },
+  "keywords": ["minecraft", "fishing", "ai", "craftmind", "ecosystem"],
+  "license": "MIT"
+}

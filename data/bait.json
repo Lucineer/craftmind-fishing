@@ -1,0 +1,229 @@
+[
+  {
+    "id": "worm",
+    "name": "Worm",
+    "emoji": "🪱",
+    "description": "The classic. Every fisherman starts here.",
+    "effectiveness": {
+      "overworld_carp": 0.8, "river_pike": 0.5, "spore_bass": 0.7, "slime_trout": 0.6,
+      "frozen_char": 0.4, "desert_pupfish": 0.7, "minnow_fry": 0.5, "cave_salmon": 0.6,
+      "insect_larva": 0.3, "default": 0.4
+    },
+    "freshnessHours": 24,
+    "craftRecipe": { "items": ["dirt", "water_bucket"], "count": 3 }
+  },
+  {
+    "id": "insect",
+    "name": "Insect",
+    "emoji": "🦗",
+    "description": "Crickets, beetles, and other bugs. Excellent surface bait.",
+    "effectiveness": {
+      "river_pike": 0.7, "coral_beauty": 0.6, "frozen_char": 0.5, "desert_pupfish": 0.5,
+      "redstone_eel": 0.5, "cave_salmon": 0.5, "default": 0.3
+    },
+    "freshnessHours": 12,
+    "craftRecipe": { "items": ["grass_block"], "count": 4 }
+  },
+  {
+    "id": "minnow",
+    "name": "Minnow",
+    "emoji": "🐠",
+    "description": "Live bait for predator fish. Irresistible to the big ones.",
+    "effectiveness": {
+      "river_pike": 0.9, "elder_guardian_marlin": 0.8, "jungle_arama": 0.8,
+      "deep_sea_angler": 0.7, "default": 0.3
+    },
+    "freshnessHours": 4,
+    "craftRecipe": { "items": ["water_bucket", "cod"], "count": 2 }
+  },
+  {
+    "id": "bread",
+    "name": "Bread Crust",
+    "emoji": "🍞",
+    "description": "Simple but effective. Surface fish love it.",
+    "effectiveness": {
+      "overworld_carp": 0.7, "minnow_fry": 0.7, "tropical_fry": 0.6,
+      "spore_bass": 0.5, "default": 0.3
+    },
+    "freshnessHours": 48,
+    "craftRecipe": { "items": ["bread"], "count": 8 }
+  },
+  {
+    "id": "glow_berries",
+    "name": "Glow Berries",
+    "emoji": "🍇",
+    "description": "Luminescent berries from cave vines. Attracts deep-water and cave species.",
+    "effectiveness": {
+      "glow_squid_bass": 0.9, "prismarine_cod": 0.8, "cave_salmon": 0.8,
+      "warden_catfish": 0.7, "coral_beauty": 0.6, "tropical_fry": 0.7, "default": 0.3
+    },
+    "freshnessHours": 72,
+    "craftRecipe": { "items": ["cave_vines"], "count": 4 }
+  },
+  {
+    "id": "blazerod_shavings",
+    "name": "Blazerod Shavings",
+    "emoji": "🔥",
+    "description": "Fiery shavings that smolder in water. Essential for Nether fishing.",
+    "effectiveness": {
+      "nether_trout": 0.9, "magma_minnow": 0.8, "ghast_sturgeon": 0.7, "default": 0.1
+    },
+    "freshnessHours": 6,
+    "craftRecipe": { "items": ["blaze_rod"], "count": 8 }
+  },
+  {
+    "id": "magma_cream_bait",
+    "name": "Magma Cream Bait",
+    "emoji": "🧪",
+    "description": "Sticky, warm, and irresistible to Nether fish.",
+    "effectiveness": {
+      "magma_minnow": 0.9, "nether_trout": 0.7, "ghast_sturgeon": 0.6, "default": 0.1
+    },
+    "freshnessHours": 8,
+    "craftRecipe": { "items": ["magma_cream", "blaze_powder"], "count": 4 }
+  },
+  {
+    "id": "glow_ink_sac",
+    "name": "Glow Ink Sac",
+    "emoji": "✨",
+    "description": "Luminous ink that draws deep-sea creatures like moths to a flame.",
+    "effectiveness": {
+      "glow_squid_bass": 0.9, "deep_sea_angler": 0.9, "phantom_ray": 0.7, "default": 0.2
+    },
+    "freshnessHours": 24,
+    "craftRecipe": { "items": ["glow_ink_sac"], "count": 4 }
+  },
+  {
+    "id": "chorus_fruit_bait",
+    "name": "Chorus Fruit Bait",
+    "emoji": "💜",
+    "description": "Teleporting bait — End fish can sense its dimensional resonance.",
+    "effectiveness": {
+      "ender_perch": 0.9, "shulker_shrimp": 0.8, "end_dragon_koi": 0.6, "default": 0.1
+    },
+    "freshnessHours": 48,
+    "craftRecipe": { "items": ["chorus_fruit"], "count": 4 }
+  },
+  {
+    "id": "ender_pearl_dust",
+    "name": "Ender Pearl Dust",
+    "emoji": "🔮",
+    "description": "Ground ender pearls. The most potent End bait available.",
+    "effectiveness": {
+      "ender_perch": 0.9, "end_dragon_koi": 0.9, "shulker_shrimp": 0.7, "default": 0.1
+    },
+    "freshnessHours": 36,
+    "craftRecipe": { "items": ["ender_pearl"], "count": 8 }
+  },
+  {
+    "id": "prismarine_shard_bait",
+    "name": "Prismarine Shard Bait",
+    "emoji": "🔷",
+    "description": "Ocean monument debris. Guardian species recognize it instinctively.",
+    "effectiveness": {
+      "prismarine_cod": 0.9, "elder_guardian_marlin": 0.9, "default": 0.3
+    },
+    "freshnessHours": 168,
+    "craftRecipe": { "items": ["prismarine_shard"], "count": 4 }
+  },
+  {
+    "id": "nautilus_shell_bait",
+    "name": "Nautilus Shell Bait",
+    "emoji": "🐚",
+    "description": "Ancient shell fragments. The ultimate deep ocean lure.",
+    "effectiveness": {
+      "elder_guardian_marlin": 0.9, "deep_sea_angler": 0.8, "default": 0.2
+    },
+    "freshnessHours": 336,
+    "craftRecipe": { "items": ["nautilus_shell"], "count": 2 }
+  },
+  {
+    "id": "phantom_membrane_bait",
+    "name": "Phantom Membrane Bait",
+    "emoji": "🦇",
+    "description": "Leathery and lightweight. Attracts aerial and nocturnal ocean fish.",
+    "effectiveness": {
+      "phantom_ray": 0.9, "ender_perch": 0.5, "default": 0.2
+    },
+    "freshnessHours": 48,
+    "craftRecipe": { "items": ["phantom_membrane"], "count": 4 }
+  },
+  {
+    "id": "tropical_fish_bait",
+    "name": "Tropical Fish Bait",
+    "emoji": "🐠",
+    "description": "Whole tropical fish as bait. Some call it wasteful. The fish call it delicious.",
+    "effectiveness": {
+      "coral_beauty": 0.8, "jungle_arama": 0.7, "river_pike": 0.6,
+      "tropical_fry": 0.5, "default": 0.3
+    },
+    "freshnessHours": 8,
+    "craftRecipe": { "items": ["tropical_fish"], "count": 2 }
+  },
+  {
+    "id": "slime_ball_bait",
+    "name": "Slime Ball Bait",
+    "emoji": "🟢",
+    "description": "Sticky, bouncy, and swamp-scented. Swamp fish go nuts for it.",
+    "effectiveness": {
+      "slime_trout": 0.9, "overworld_carp": 0.5, "spore_bass": 0.6, "default": 0.2
+    },
+    "freshnessHours": 72,
+    "craftRecipe": { "items": ["slime_ball"], "count": 6 }
+  },
+  {
+    "id": "redstone_bait",
+    "name": "Redstone Dust Bait",
+    "emoji": "🔴",
+    "description": "Conductive dust that attracts electric and cave species.",
+    "effectiveness": {
+      "redstone_eel": 0.9, "cave_salmon": 0.6, "warden_catfish": 0.5, "default": 0.1
+    },
+    "freshnessHours": 168,
+    "craftRecipe": { "items": ["redstone"], "count": 8 }
+  },
+  {
+    "id": "sculk_bait",
+    "name": "Sculk Bait",
+    "emoji": "👁️",
+    "description": "Pulsating sculk fragments. The Warden's equivalent of dinner bell.",
+    "effectiveness": {
+      "warden_catfish": 0.9, "cave_salmon": 0.7, "redstone_eel": 0.5, "default": 0.1
+    },
+    "freshnessHours": 72,
+    "craftRecipe": { "items": ["sculk_sensor"], "count": 2 }
+  },
+  {
+    "id": "dragon_breath_bait",
+    "name": "Dragon Breath Bait",
+    "emoji": "🐲",
+    "description": "The rarest bait in existence. Only the Ender Dragon Koi responds.",
+    "effectiveness": {
+      "end_dragon_koi": 0.9, "ender_perch": 0.5, "ghast_sturgeon": 0.3, "default": 0.05
+    },
+    "freshnessHours": 24,
+    "craftRecipe": { "items": ["dragon_breath", "end_crystal"], "count": 1 }
+  },
+  {
+    "id": "ghast_tear_bait",
+    "name": "Ghast Tear Bait",
+    "emoji": "💧",
+    "description": "Shimmering ghast tears. The sorrow within draws the ancient Nether fish.",
+    "effectiveness": {
+      "ghast_sturgeon": 0.9, "nether_trout": 0.6, "magma_minnow": 0.5, "default": 0.1
+    },
+    "freshnessHours": 48,
+    "craftRecipe": { "items": ["ghast_tear"], "count": 2 }
+  },
+  {
+    "id": "ice_bait",
+    "name": "Packed Ice Bait",
+    "emoji": "🧊",
+    "description": "Slowly melting ice with frozen fish essence. Cold-water favorite.",
+    "effectiveness": {
+      "frozen_char": 0.9, "cave_salmon": 0.5, "deep_sea_angler": 0.4, "default": 0.2
+    },
+    "freshnessHours": 6,
+    "craftRecipe": { "items": ["packed_ice", "snowball"], "count": 4 }
+  }
+]
