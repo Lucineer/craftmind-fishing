@@ -372,9 +372,13 @@ export class ScriptRunner {
           // Wait a beat before casting
           await this._wait(800);
           if (!this._running) throw new Error('INTERRUPTED');
-          // Cast
+          // Cast with timeout (Minecraft fishing can hang in test servers)
           console.log('[ScriptRunner] Casting line...');
-          await this.bot.fish();
+          const fishPromise = this.bot.fish();
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Fishing timeout (45s)')), 45000)
+          );
+          await Promise.race([fishPromise, timeoutPromise]);
           console.log('[ScriptRunner] Line reeled in');
         } catch (e) {
           if (e.message !== 'INTERRUPTED') {
