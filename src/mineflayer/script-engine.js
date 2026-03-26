@@ -104,7 +104,7 @@ export class MoodSystem {
   /** Natural decay: mood drifts toward neutral, energy drains */
   tick() {
     this.mood += (0.5 - this.mood) * 0.01; // drift toward neutral
-    this.energy = Math.max(0.1, this.energy - 0.0005); // slow drain
+    this.energy = Math.max(0.1, this.energy - 0.0002); // very slow drain (was 0.0005)
   }
 }
 
@@ -158,6 +158,7 @@ export class ScriptRunner {
       if (collector.username === this.bot.username) {
         this.context.fishCaught++;
         this.mood.shift(0.05);
+        this.mood.energy = Math.min(1.0, this.mood.energy + 0.05); // recover energy on catch
       }
     });
 
