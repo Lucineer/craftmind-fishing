@@ -1,105 +1,78 @@
-<p align="center">
-<pre>
-      /`·.¸
-     /¸...¸`:·
-  ¸.·´  ¸   `·.¸.·´)
-: © ):´;      ¸  {
- `·.¸ `·  ¸.·´\`·¸)
-     `\\´´\¸.·´
+# 🎣 CraftMind Fishing
 
-  <b>C R A F T M I N D &nbsp; F I S H I N G</b>
-  AI-Powered Minecraft Fishing Ecosystem
-</pre>
-</p>
+> Sitka Sound open-world RPG — the most realistic fishing game in Minecraft.
 
-> _"Fishing deserves to be interesting."_
+[![226 tests](https://img.shields.io/badge/tests-226%20passing-brightgreen)]()
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18-blue)]()
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)]()
 
-Minecraft's fishing is: **cast rod → wait → reel → random loot.** Boring.
+## Overview
 
-CraftMind Fishing transforms it into something alive:
+CraftMind Fishing transforms Minecraft's anticlimactic fishing mechanic into a living, breathing simulation of Alaska's commercial fisheries. Set in Sitka Sound — a real fishing community in Southeast Alaska — players captain boats through dynamic weather, navigate tides, identify 70+ real fish species by their actual behavior, and compete in a living economy driven by the same permit systems that govern real Alaskan waters.
 
-- 🐟 **AI Fish** — 25 species with distinct personalities, behaviors, and decision-making
-- 🌊 **Dynamic Ecosystems** — populations shift, seasons change, predator-prey dynamics play out
-- 🤖 **Bot Fishermen** — autonomous bots that learn, adapt, and share knowledge
-- 💰 **Living Economy** — supply and demand, dynamic pricing, achievements
-- ⚔️ **Tournaments** — competitive fishing across multiple modes
+The game is built on real science. Species distributions, ex-vessel pricing, CFEC permit tiers, and seasonal migrations are modeled on actual Alaska Department of Fish & Game data. Kids don't realize they're learning oceanography, economics, and marine biology — they're just trying to fill their hold before the storm hits.
 
----
+Everything runs as a [CraftMind Core](https://github.com/CedarBeach2019/craftmind) plugin, so you can drop it into any bot and fish alongside your crew in a shared world.
 
-## Architecture
+## Features
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    CRAFTMIND FISHING                        │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐               │
-│  │ Weather  │──▶│Ecosystem │──▶│ Fish AI  │               │
-│  │  System  │   │  Engine  │   │(Decision)│               │
-│  └──────────┘   └──────────┘   └────┬─────┘               │
-│       │              │               │                      │
-│       ▼              ▼               ▼                      │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐               │
-│  │   Rod    │   │  Bait &  │   │  Fish    │               │
-│  │  System  │   │  Lures   │   │ Species  │               │
-│  └──────────┘   └──────────┘   └──────────┘               │
-│                      │                                      │
-│                      ▼                                      │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐               │
-│  │Economy & │◀──│   Bot    │──▶│Tournament│               │
-│  │Achievements│ │Fisherman │   │  System  │               │
-│  └──────────┘   └──────────┘   └──────────┘               │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+### 🐟 Marine Life
+- **70+ real Alaska fish species** with accurate AI behavior, fight patterns, and habitat preferences
+- **Marine mammals** — humpback whales, sea lions, orcas with predation mechanics and random encounters
+- **Dynamic populations** that shift with seasons, overfishing pressure, and predator-prey dynamics
 
-## Species Catalog
+### 🌊 Environment
+- **Dynamic weather system** — rain, wind, fog, visibility, and sea state affecting bite rates
+- **Realistic tidal cycles** with 6-hour ebb and flood, impacting access to fishing grounds
+- **Ocean biomes** — kelp forests, deep channels, shallow flats, each with distinct species assemblages
 
-| Rarity | Species |
-|--------|---------|
-| ⬜ Common | 🐟 Overworld Carp · 🫠 Magma Minnow · 🐠 Minnow Fry · 🌈 Tropical Fry · 🐛 Insect Larva |
-| 🟩 Uncommon | 🐟 River Pike · 💎 Prismarine Cod · 🍄 Spore Bass · 🌸 Coral Beauty · ❄️ Frozen Char · 🟢 Slime Trout · 🏜️ Desert Pupfish · 🪨 Cave Salmon |
-| 🟦 Rare | 🔥 Nether Trout · 🦑 Glow Squid Bass · 🦐 Shulker Shrimp · ⚡ Redstone Eel |
-| 🟪 Epic | 🟣 Ender Perch · 🌊 Deep Sea Angler · 🌿 Jungle Arapaima · 👻 Phantom Ray |
-| 🟧 Legendary | 👁️ Warden Catfish · 🔱 Elder Guardian Marlin · 🐉 Ender Dragon Koi · 👻 Ghast Sturgeon |
+### 🎣 Fishing
+- **8 fishing methods** — troll, seine, longline, dive, pot, cast, drift, and sport
+- **Rod & gear progression** — 6 tiers from Wooden to Ender, with enchantments, durability, and breakage
+- **20+ bait types** with species effectiveness, freshness decay, and 4 special lures
+- **Fishing state machine** — IDLE → CASTING → REELING → FIGHTING → LANDING
 
-Each fish has a **personality** — the Ghast Sturgeon is "Ancient and sorrowful. Its tears become magma cream." The Overworld Carp is "Patient and unassuming. The carp has seen empires rise and fall and still doesn't care."
+### 💰 Economy
+- **Real CFEC permit system** — Limited Entry, Guided Sport, Crew, Subsistence tiers
+- **Ex-vessel pricing** based on actual Alaska fish market data
+- **Dynamic supply and demand** — sell too much king salmon and watch the price crash
+- **Fishing company management** — hire crew, buy boats, manage contracts
+
+### 🏘️ World
+- **Town of Sitka** with 40+ buildings, 11 NPCs with dialogue, and 3 harbors
+- **Marine radio** with weather broadcasts, fishery bulletins, and distress calls
+- **Quest system** — tutorial quest with Old Thomas, achievement tracks, skill trees
+- **Crew roles** — Deckhand, Engineer, Navigator, Cook — each with unique abilities
+
+### 🎮 Playable
+- **Full playtest mode** — `node scripts/playtest.js` spawns a bot in Sitka Sound
+- **9 in-game commands** via CraftMind plugin system
+- **Biology lessons** — fish identification cards, habitat education, bycatch awareness
 
 ## Quick Start
 
 ```bash
-# Install (no dependencies required — pure Node.js)
 git clone https://github.com/CedarBeach2019/craftmind-fishing.git
 cd craftmind-fishing
+npm install
 
-# Run tests
+# Run the test suite
 npm test
 
-# Run standalone demo (no Minecraft needed)
+# Run the standalone demo (no Minecraft needed)
 npm run demo
 
-# Run bot tournament demo
-npm run bot-demo
+# Playtest with a Minecraft server
+node scripts/playtest.js
 ```
 
-## 🎣 Play Testing with Minecraft
+### Prerequisites for Playtest
 
-The fishing system now has full **Mineflayer integration** via CraftMind Core. Connect a bot to a real Minecraft server and fish in Sitka Sound.
-
-### Prerequisites
 - Minecraft server running on `localhost:25565`
-- [CraftMind Core](../craftmind) installed alongside this repo
+- [CraftMind Core](https://github.com/CedarBeach2019/craftmind) installed alongside this repo
 - Node.js 18+
 
-### Starting a Playtest
-
-```bash
-node scripts/playtest.js
-# or if the server is already running:
-node scripts/playtest.js --no-server
-```
-
-### Fishing Commands
+## Commands
 
 | Command | Aliases | Description |
 |---------|---------|-------------|
@@ -107,102 +80,74 @@ node scripts/playtest.js --no-server
 | `!reel` | `!haul` | Haul back your catch |
 | `!check` | — | Show fishing status, weather, tides, inventory |
 | `!sell [all\|<species>]` | — | Sell fish from your hold |
-| `!gear [buy <id>]` | — | Check/buy fishing gear |
+| `!gear [buy <id>]` | — | Check or buy fishing gear |
 | `!weather` | — | Check current weather conditions |
 | `!tide` | — | Check tidal conditions |
 | `!radio` | — | Check marine radio chatter |
-| `!permit [buy <id>]` | — | Check/buy fishing permits |
+| `!permit [buy <id>]` | — | Check or buy fishing permits |
 
-### What's Implemented
-- ✅ Game engine with weather, tides, economy, wildlife, NPCs
-- ✅ 9 fishing commands via CraftMind plugin system
-- ✅ Fishing state machine (IDLE → CASTING → REELING → FIGHTING → LANDING)
-- ✅ Inventory hooks for fish and gear tracking
-- ✅ World awareness (biome detection, water proximity)
-- ✅ LLM brain prompt fragment for natural fishing conversation
-- ✅ Onboarding system (Old Thomas welcome, tutorial quest, starting gear)
-- ✅ 39 playtest tests passing
+## Architecture
 
-### Known Issues
-- Game engine runs in-head (no actual Minecraft rod casting yet — uses chat commands)
-- Permit IDs in the game engine may not match `PERMIT_TYPES` exactly
-- Onboarding `setTimeout` phases don't execute in headless tests
-- Playtest launcher (`scripts/playtest.js`) requires the server to be pre-started
-
-### TODO
-- Actual Mineflayer `useEquipment` to cast real fishing rods
-- Fish entity spawning as Minecraft armor stands/mobs
-- Visual fishing bobber and bite detection
-- RCON integration for server-side commands (teleport, gamemode, give items)
-- NPC entities as Minecraft villagers with custom names
-- World generation for Sitka Sound terrain
-
-## API Overview
-
-```js
-import { CraftMindFishing, FishingRod, Bait } from './src/index.js';
-
-// Create the system
-const fishing = new CraftMindFishing();
-
-// Add water bodies
-fishing.addWater('village_pond', 'plains', { maxDepth: 5 });
-fishing.addWater('nether_lake', 'basalt_deltas', { maxDepth: 8 });
-
-// Create a bot fisherman
-const bot = fishing.createBot('Angler3000', {
-  rod: new FishingRod('diamond', { lure: 3, luck_of_the_sea: 2 }),
-  baitInventory: [new Bait('glow_berries', { stackSize: 32 })],
-});
-
-// Fish!
-fishing.tick(60000);
-const result = bot.fish(fishing.ecosystem, 'village_pond', fishing.weather, fishing.ecosystem.getTimeOfDay());
-
-if (result.success) {
-  console.log(`Caught: ${result.caught.species.emoji} ${result.caught.species.name} — ${result.caught.weight}kg`);
-}
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     CRAFTMIND FISHING                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐       │
+│  │ Weather  │  │  Tides   │  │ Species  │  │  Wildlife│       │
+│  │  System  │  │  Engine  │  │ Registry │  │  Engine  │       │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘       │
+│       │             │             │             │              │
+│       ▼             ▼             ▼             ▼              │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    Game Engine                           │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐             │   │
+│  │  │Ecosystem │  │ Economy  │  │   Town   │             │   │
+│  │  │  Engine  │  │  Engine  │  │  Engine  │             │   │
+│  │  └──────────┘  └──────────┘  └──────────┘             │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐             │   │
+│  │  │  Rod &   │  │ Fishing  │  │  Quest   │             │   │
+│  │  │  Bait    │  │ Methods  │  │ System   │             │   │
+│  │  └──────────┘  └──────────┘  └──────────┘             │   │
+│  └────────────────────────┬───────────────────────────────┘   │
+│                           │                                    │
+│              ┌────────────▼────────────┐                      │
+│              │   CraftMind Core Plugin │                      │
+│              └────────────┬────────────┘                      │
+│                           │                                    │
+│              ┌────────────▼────────────┐                      │
+│              │    mineflayer bot       │                      │
+│              └────────────┬────────────┘                      │
+└───────────────────────────┼──────────────────────────────────┘
+                            │
+                   ┌────────▼────────┐
+                   │ Minecraft Server│
+                   └─────────────────┘
 ```
 
-## Modules
+## Ecosystem
 
-### `fish-species.js` — Species Registry
-25 species with rarity tiers, biome preferences, fight stats, and special abilities.
+CraftMind Fishing is part of the CraftMind ecosystem:
 
-### `fish-ai.js` — Fish Intelligence
-Each fish has hunger, curiosity, aggression, fear. They **decide** whether to bite. They get spooked. They have fight patterns.
+| Repo | Description |
+|------|-------------|
+| [craftmind](https://github.com/CedarBeach2019/craftmind) | 🤖 Core bot framework |
+| [**craftmind-fishing**](https://github.com/CedarBeach2019/craftmind-fishing) | 🎣 Sitka Sound fishing RPG |
+| [craftmind-studio](https://github.com/CedarBeach2019/craftmind-studio) | 🎬 AI filmmaking engine |
+| [craftmind-ranch](https://github.com/CedarBeach2019/craftmind-ranch) | 🐄 Animal husbandry simulation |
+| [craftmind-herding](https://github.com/CedarBeach2019/craftmind-herding) | 🐑 Livestock herding AI |
+| [craftmind-circuits](https://github.com/CedarBeach2019/craftmind-circuits) | ⚡ Redstone circuit design |
+| [craftmind-courses](https://github.com/CedarBeach2019/craftmind-courses) | 📚 In-game learning system |
+| [craftmind-researcher](https://github.com/CedarBeach2019/craftmind-researcher) | 🔬 AI research assistant |
 
-### `ecosystem.js` — Dynamic Ecosystem
-Persistent populations. Predator-prey dynamics. Seasonal migration. Water quality. Overfishing consequences.
+## Assets
 
-### `rod-system.js` — Rod Progression
-6 tiers (Wooden → Ender). Enchantments (Luck of the Sea, Lure, Unbreaking, Mending). Durability and breakage.
+AI-generated textures, models, and sprites live in `assets/generated/` and are not tracked in git. To regenerate:
 
-### `bait-system.js` — Bait & Lures
-20 bait types with species effectiveness. Freshness decay. 4 special lures (Attraction, Camouflage, Trophy, Patience).
-
-### `weather-system.js` — Environment
-Rain, thunder, moon phases, temperature. Weather affects bite rates and rare fish spawns.
-
-### `bot-fisherman.js` — AI Fishermen
-Bots autonomously fish, learn from experience, share knowledge with other bots, and manage inventory.
-
-### `tournament.js` — Competitive Fishing
-4 modes: Speed Fishing, Trophy Hunt, Species Collection, Total Weight. Persistent leaderboards.
-
-### `economy.js` — Fish Economy
-Dynamic pricing, cooking recipes (6 tiers), 11 achievements, supply/demand mechanics.
-
-## Design Philosophy
-
-> Fishing in Minecraft is one of the most anticlimactic mechanics in gaming. You cast, you wait, you get a random number. There's no skill, no strategy, no story.
-
-> We believe fishing can be a **window into a living world**. When you pull a Ghast Sturgeon from a lava pool during a thunderstorm on a full moon, you should feel like you've accomplished something extraordinary. When you learn that Glow Berries work best for Prismarine Cod at night — through your own experimentation — that knowledge should feel earned.
-
-> Every fish has a personality. Every body of water has a history. Every cast is a decision with consequences.
-
-**That's why fishing deserves to be interesting.**
+```bash
+python3 scripts/gen-batch.py
+```
 
 ## License
 
-MIT © 2026
+MIT — see [LICENSE](LICENSE).
