@@ -335,7 +335,23 @@ export class ScriptRunner {
             maxDistance: 6,
           });
           if (!waterBlock) {
-            // No water nearby — move toward spawn/dock
+            // No water nearby — walk toward dock at (0, 65, 0)
+            try {
+              const pos = this.bot.entity.position;
+              const dx = 0 - pos.x;
+              const dz = 0 - pos.z;
+              const dist = Math.sqrt(dx * dx + dz * dz);
+              if (dist > 2) {
+                const target = pos.offset(dx / dist * 8, 0, dz / dist * 8);
+                this.bot.lookAt(target);
+                this.bot.setControlState('forward', true);
+                this.bot.setControlState('sprint', dist > 10);
+                await this._wait(2000);
+                this.bot.clearControlStates();
+              }
+            } catch (e) {
+              console.error('[ScriptRunner] Walk-to-dock error:', e.message);
+            }
             this._isFishing = false;
             break;
           }

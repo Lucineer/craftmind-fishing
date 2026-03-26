@@ -990,33 +990,45 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
     try {
       scriptRunner = new ScriptRunner(ctx.bot, {});
 
-      // Load legacy scripts
-      const scripts = createFishingScripts(ctx.bot);
-      for (const s of scripts) {
-        scriptRunner.register(s);
-      }
-
-      // Load v1 script registry
+      // Load registry scripts (v1/v2/v3 from scripts/ directory)
       scriptRegistry = new ScriptRegistry();
       await scriptRegistry.loadAll();
       ctx._scriptRegistry = scriptRegistry;
 
-      // Register all v1 scripts with the runner
-      for (const entry of scriptRegistry.list()) {
+      // Register all registry scripts with the runner
+      const registryScripts = scriptRegistry.list();
+      const hasV2Plus = registryScripts.some(e => e.name && e.name.startsWith('v2-') || e.name?.startsWith('v3-'));
+      const preferredScript = process.env.CODY_SCRIPT || null;
+
+      for (const entry of registryScripts) {
         const data = scriptRegistry.get(entry.name);
-        if (data && !scriptRunner.scripts.has(entry.name)) {
+        if (data) {
           scriptRunner.register(new Script(entry.name, data.steps));
         }
+      }
+
+      // Only load legacy scripts if: no v2/v3 scripts exist AND no CODY_SCRIPT env var
+      if (!hasV2Plus && !preferredScript) {
+        const legacyScripts = createFishingScripts(ctx.bot);
+        for (const s of legacyScripts) {
+          if (!scriptRunner.scripts.has(s.name)) {
+            scriptRunner.register(new Script(s.name, s.steps));
+          }
+        }
+        console.log('[FishingPlugin] Loaded legacy scripts (no v2/v3 found)');
+      } else {
+        console.log(`[FishingPlugin] Using registry scripts only (${registryScripts.length} loaded)`);
       }
 
       // Start auto-run after 8 seconds (let BT handle initial survival setup)
       setTimeout(() => {
         if (ctx.bot?.entity) {
-          // Use CODY_SCRIPT env var or default to social_fisher
-          const preferredScript = process.env.CODY_SCRIPT || 'social_fisher';
-          if (scriptRegistry.get(preferredScript)) {
+          if (preferredScript && scriptRegistry.get(preferredScript)) {
             scriptRunner.switchToV1({ ...scriptRegistry.get(preferredScript), name: preferredScript });
             console.log(`[FishingPlugin] Starting with script: ${preferredScript}`);
+          } else if (preferredScript) {
+            console.warn(`[FishingPlugin] CODY_SCRIPT="${preferredScript}" not found in registry, falling back to auto-run`);
+            scriptRunner.startAutoRun(3000);
           } else {
             scriptRunner.startAutoRun(3000);
           }
