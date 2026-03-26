@@ -332,6 +332,7 @@ export class ScriptRunner {
           // Equip fishing rod
           const rod = this.bot.inventory.items().find(i => i.name.includes('fishing_rod'));
           if (!rod) {
+            console.warn('[ScriptRunner] No fishing rod in inventory!');
             this._isFishing = false;
             break; // No rod, skip fishing
           }
@@ -348,6 +349,7 @@ export class ScriptRunner {
             maxDistance: 6,
           });
           if (!waterBlock) {
+            console.warn(`[ScriptRunner] No water within 6 blocks (pos: ${this.bot.entity.position})`);
             // No water nearby — walk toward dock at (0, 65, 0)
             try {
               const pos = this.bot.entity.position;
