@@ -136,6 +136,7 @@ export class ScriptRunner {
     };
     this._running = false;
     this._currentScript = null;
+    this._isFishing = false;
     this._tickInterval = null;
 
     // Wire up events
@@ -318,20 +319,27 @@ export class ScriptRunner {
 
       case 'fish':
         if (!this._running) throw new Error('INTERRUPTED');
+        if (this._isFishing) break; // Prevent concurrent bot.fish() calls
         try {
+          this._isFishing = true;
           // Equip fishing rod
           const rod = this.bot.inventory.items().find(i => i.name.includes('fishing_rod'));
-          if (rod) {
-            await this.bot.equip(rod, 'hand');
+          if (!rod) {
+            this._isFishing = false;
+            break; // No rod, skip fishing
           }
-          // Look at nearest water
+          await this.bot.equip(rod, 'hand');
+          // Find water — MUST be within 6 blocks
           const waterBlock = this.bot.findBlock({
             matching: this.bot.registry.blocksByName.water?.id,
-            maxDistance: 10,
+            maxDistance: 6,
           });
-          if (waterBlock) {
-            this.bot.lookAt(waterBlock.position);
+          if (!waterBlock) {
+            // No water nearby — move toward spawn/dock
+            this._isFishing = false;
+            break;
           }
+          this.bot.lookAt(waterBlock.position);
           // Wait a beat before casting
           await this._wait(800);
           if (!this._running) throw new Error('INTERRUPTED');
@@ -341,6 +349,8 @@ export class ScriptRunner {
           if (e.message !== 'INTERRUPTED') {
             console.error('[ScriptRunner] Fish error:', e.message);
           }
+        } finally {
+          this._isFishing = false;
         }
         break;
 

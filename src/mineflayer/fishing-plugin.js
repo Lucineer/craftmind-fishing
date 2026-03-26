@@ -564,6 +564,8 @@ function buildBehaviorTree(ai, game, ctx, actions) {
   });
 
   const goFishing = new Action('go_fishing', async () => {
+    // Never fish if script runner is active — it handles fishing
+    if (ctx._scriptRunner?.isRunning) return Status.FAILURE;
     bb.set('_mcFishing', true);
     bb.set('lastAction', 'go_fishing');
 
@@ -1051,6 +1053,20 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
 
     // ── Spawn event ──────────────────────────────────────────
     ctx.events.on('SPAWN', () => {
+      // TP to dock on respawn (prevent wandering into water/void)
+      const pos = ctx.bot?.entity?.position;
+      if (pos) {
+        const distFromDock = Math.sqrt(pos.x ** 2 + pos.z ** 2);
+        if (distFromDock > 30) {
+          // Walk toward origin (dock area) instead of teleporting
+          const navigator = ctx.bot?.pathfinder;
+          if (navigator) {
+            ctx.bot.setControlState('forward', false);
+            ctx.bot.setControlState('sprint', false);
+            ctx.bot.setControlState('jump', false);
+          }
+        }
+      }
       memory.resetSession();
       schedule.resetDay();
       behaviorTree.reset();
