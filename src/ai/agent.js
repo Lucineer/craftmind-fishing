@@ -90,7 +90,9 @@ export class Agent {
 
     // If config has traits directly (Cody-style)
     if (config.traits) {
-      return new Personality(config.traits);
+      const p = new Personality();
+      Object.assign(p.traits, config.traits);
+      return p;
     }
 
     // If config has opinions
