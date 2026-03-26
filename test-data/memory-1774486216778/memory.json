@@ -1,0 +1,20 @@
+{
+  "episodes": [
+    {
+      "type": "persist_test",
+      "time": "2026-03-26T00:50:16.778Z",
+      "timestamp": 1774486216778
+    }
+  ],
+  "rules": [
+    {
+      "rule": "persist rule",
+      "confidence": 0.5,
+      "source": "experience",
+      "tags": [],
+      "createdAt": "2026-03-26T00:50:16.778Z",
+      "reinforced": 0
+    }
+  ],
+  "savedAt": "2026-03-26T00:50:16.779Z"
+}
