@@ -177,19 +177,7 @@ const fishingCommands = [
         return ctx.reply(result.message);
       }
       const equipped = game.player.gear.map(g => g.id).join(', ') || 'none';
-      ctx.reply(`Gear: ${equipped} | Gold: $${game.player.gold}`);
-    },
-  },
-  {
-    name: 'weather',
-    description: 'Check weather conditions',
-    usage: '!weather',
-    execute(ctx) {
-      const game = ctx._fishingGame;
-      if (!game) return ctx.reply('Not initialized.');
-      const s = game.getState();
-      const r = game.weather.getFishingReport?.() || 'No report available.';
-      ctx.reply(`${s.weather.emoji || ''} ${s.weather.name || s.weather.type} | Temp: ${s.weather.temperature}°F | Wind: ${s.weather.windSpeed}kts | Sea: ${s.weather.seaState} | ${r}`);
+      ctx.reply(`Gear: $${equipped} | Gold: $${game.player.gold}`);
     },
   },
   {
@@ -296,10 +284,7 @@ const fishingCommands = [
     usage: '!build',
     execute(ctx) {
       ctx.reply('🔨 Building Sitka Sound... This may take a moment.');
-      import('../scripts/setup-world.js').catch(() => {
-        // Script can't be re-imported from plugin context; run externally
-        ctx.reply('Run `node scripts/setup-world.js` in your server terminal to build the world.');
-      });
+      ctx.reply('Run `node scripts/setup-world.js` in your server terminal to build the world.');
     },
   },
   {
@@ -669,7 +654,7 @@ const fishingPlugin = {
   version: '2.0.0',
   provides: ['fishing', 'game-engine', 'ai-behavior'],
 
-  load(ctx) {
+  async load(ctx) {
     // Create the game engine instance
     const game = new SitkaFishingGame();
     game.init({ name: ctx.bot?.username || 'Captain' });

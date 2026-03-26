@@ -9,6 +9,15 @@
     "demo": "node examples/standalone-fishing.js",
     "bot-demo": "node examples/bot-fisherman.js"
   },
-  "keywords": ["minecraft", "fishing", "ai", "craftmind", "ecosystem"],
-  "license": "MIT"
+  "keywords": [
+    "minecraft",
+    "fishing",
+    "ai",
+    "craftmind",
+    "ecosystem"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "rcon-client": "^4.2.5"
+  }
 }
