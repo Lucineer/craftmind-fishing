@@ -11,7 +11,7 @@ const SERVERS = [
   { port: 25568, rcon: 25578, bot: 'Cody_C' },
 ];
 
-const BOT_CMD = 'cd /home/lucineer/projects/craftmind && source .env && node --unhandled-rejections=warn src/bot.js';
+const BOT_CMD = 'bash -c \'cd /home/lucineer/projects/craftmind && source .env && node --unhandled-rejections=warn src/bot.js\'';
 const PLUGIN = '../craftmind-fishing/src/mineflayer/fishing-plugin.js';
 
 function isProcessRunning(pattern) {
@@ -30,7 +30,8 @@ function isServerAlive(port) {
 
 function startBot(server) {
   const escapedBot = server.bot.replace(/'/g, "'\\''");
-  const cmd = `nohup ${BOT_CMD} localhost ${server.port} ${escapedBot} --plugin ${PLUGIN} > /tmp/bot-${server.port}.log 2>&1 &`;
+  const innerCmd = `cd /home/lucineer/projects/craftmind && source .env && node --unhandled-rejections=warn src/bot.js localhost ${server.port} ${escapedBot} --plugin ${PLUGIN}`;
+  const cmd = `nohup bash -c '${innerCmd}' > /tmp/bot-${server.port}.log 2>&1 &`;
   execSync(cmd, { shell: '/bin/bash' });
   console.log(`[${new Date().toISOString()}] Started ${server.bot} on port ${server.port}`);
 }
