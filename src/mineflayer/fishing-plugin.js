@@ -25,6 +25,8 @@ import { ComparativeEvaluator } from '../ai/comparative-evaluator.js';
 import { ScriptEvolver } from '../ai/script-evolver.js';
 import { DecisionEngine } from '../ai/decision-engine.js';
 import { Actions } from './actions.js';
+import { WorldManager } from './world-manager.js';
+import { SITKA_LOCATIONS } from './sitka-world.js';
 import { ActionPlanner } from '../ai/action-planner.js';
 import { ActionExecutor } from '../ai/action-executor.js';
 import { ConversationMemory } from '../ai/conversation-memory.js';
@@ -286,6 +288,72 @@ const fishingCommands = [
 
       // Default: personality-driven response
       ctx.reply(ai.personality.getResponse('general'));
+    },
+  },
+  {
+    name: 'build',
+    description: 'Build the Sitka Sound world',
+    usage: '!build',
+    execute(ctx) {
+      ctx.reply('🔨 Building Sitka Sound... This may take a moment.');
+      import('../scripts/setup-world.js').catch(() => {
+        // Script can't be re-imported from plugin context; run externally
+        ctx.reply('Run `node scripts/setup-world.js` in your server terminal to build the world.');
+      });
+    },
+  },
+  {
+    name: 'tp',
+    description: 'Teleport to a Sitka location',
+    usage: '!tp <location>',
+    execute(ctx, locationName) {
+      if (!locationName) {
+        const names = Object.entries(SITKA_LOCATIONS).map(([k, v]) => `${k}: ${v.name}`).join(', ');
+        return ctx.reply(`Locations: ${names}`);
+      }
+      const key = locationName.toLowerCase().replace(/\s+/g, '_');
+      const loc = SITKA_LOCATIONS[key];
+      if (!loc) return ctx.reply(`Unknown location: ${locationName}`);
+      const wb = ctx._worldManager?.rcon;
+      if (!wb?.rcon) return ctx.reply('World connection not available.');
+      wb.teleport(ctx.bot?.username || '@p', loc.x, loc.y, loc.z).then(() => {
+        ctx.reply(`⚓ Teleporting to ${loc.name}...`);
+      });
+    },
+  },
+  {
+    name: 'weather',
+    description: 'Check or set weather in Minecraft',
+    usage: '!weather [clear|rain|storm]',
+    execute(ctx, arg) {
+      const game = ctx._fishingGame;
+      const wm = ctx._worldManager;
+
+      if (arg && wm) {
+        if (arg === 'storm') { wm.setStorm(); return ctx.reply('⛈ Setting thunder...'); }
+        if (arg === 'clear') { wm.setClear(); return ctx.reply('☀ Clearing up.'); }
+        if (arg === 'rain') { wm.send('/weather rain 9999'); return ctx.reply('🌧 Rain incoming.'); }
+      }
+
+      // Default: check weather from game engine
+      if (!game) return ctx.reply('Not initialized.');
+      const s = game.getState();
+      const r = game.weather.getFishingReport?.() || 'No report available.';
+      ctx.reply(`${s.weather.emoji || ''} ${s.weather.name || s.weather.type} | Temp: ${s.weather.temperature}°F | Wind: ${s.weather.windSpeed}kts | Sea: ${s.weather.seaState} | ${r}`);
+    },
+  },
+  {
+    name: 'biome',
+    description: 'Check current biome',
+    usage: '!biome',
+    execute(ctx) {
+      const wm = ctx._worldManager;
+      if (!wm) return ctx.reply('World manager not available.');
+      const pos = ctx.bot?.entity?.position;
+      if (!pos) return ctx.reply('No position data.');
+      const biome = wm.getBiomeAt(pos.x, pos.y, pos.z);
+      const nearest = wm.getNearestLocation(pos.x, pos.y, pos.z);
+      ctx.reply(`Biome: ${biome} | Nearest: ${nearest.name} (${Math.round(nearest.distance)}m)`);
     },
   },
 ];
@@ -627,6 +695,21 @@ const fishingPlugin = {
 
     // Track current session for recording
     ctx._liveSession = null;
+
+    // Create WorldManager for Minecraft world integration
+    try {
+      const { WorldBuilder } = await import('./world-builder.js');
+      const wb = new WorldBuilder(
+        process.env.RCON_HOST || 'localhost',
+        parseInt(process.env.RCON_PORT || '25575', 10),
+        process.env.RCON_PASSWORD || 'craftmind'
+      );
+      await wb.connect();
+      ctx._worldManager = new WorldManager(wb);
+    } catch (err) {
+      console.warn('[FishingPlugin] WorldManager init failed (non-fatal):', err.message);
+      ctx._worldManager = null;
+    }
 
     // Create Actions instance for real mineflayer movements
     let actions = null;
