@@ -239,44 +239,46 @@ export class ScriptRunner {
 
   _pickNextScript() {
     if (this.context.combatCooldown > Date.now()) {
-      // Recently in combat, just idle briefly
       return;
     }
 
-    const hasPlayers = this.context.playersSeen.size > 0;
-    const energy = this.mood.energy;
-    const mood = this.mood.mood;
-
-    // Weighted choice of what to do next
-    const choices = [];
-
-    // Fishing is always an option
-    choices.push({ w: 0.45, script: 'afternoon_fish' });
-
-    // Social if players around and mood is good
-    if (hasPlayers && mood > 0.3) {
-      choices.push({ w: 0.20, script: 'greet_player' });
-    }
-
-    // Break if tired
-    if (energy < 0.4) {
-      choices.push({ w: 0.25, script: 'take_break' });
-    }
-
-    // Wander around sometimes
-    choices.push({ w: 0.10, script: 'look_around' });
-
-    // Normalize weights
-    const total = choices.reduce((s, c) => s + c.w, 0);
-    let roll = Math.random() * total;
-    for (const c of choices) {
-      roll -= c.w;
-      if (roll <= 0) {
-        this.run(c.script);
-        return;
+    // If we have registered scripts, pick from them (weighted by mood/context)
+    if (this._scripts.size > 0) {
+      const hasPlayers = this.context.playersSeen.size > 0;
+      const energy = this.mood.energy;
+      
+      // Build weighted choices from registered scripts
+      const choices = [];
+      for (const [name, script] of this._scripts) {
+        let weight = 1.0;
+        // Prefer fishing scripts when no players around
+        if (name.includes('fish') && !hasPlayers) weight *= 1.5;
+        // Prefer social scripts when players are near
+        if (name.includes('social') && hasPlayers) weight *= 1.5;
+        // Reduce weight for tired-specific scripts when energy is high
+        if (name.includes('lazy') || name.includes('break')) {
+          weight *= (1.2 - energy);
+        }
+        choices.push({ w: Math.max(weight, 0.1), script: name });
+      }
+      
+      const total = choices.reduce((s, c) => s + c.w, 0);
+      let roll = Math.random() * total;
+      for (const c of choices) {
+        roll -= c.w;
+        if (roll <= 0) {
+          this.run(c.script);
+          return;
+        }
       }
     }
-    this.run('afternoon_fish');
+
+    // Fallback: try the legacy script names if they exist
+    const fallback = this._scripts.has('afternoon_fish') ? 'afternoon_fish' : 
+                     [...this._scripts.keys()][0] || null;
+    if (fallback) {
+      this.run(fallback);
+    }
   }
 
   async _executeSteps(steps) {

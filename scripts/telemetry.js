@@ -20,8 +20,8 @@ function countPattern(file, pattern) {
 
 function uniqueChatLines(file, botName) {
   try {
-    return execSync(`grep "Not Secure.*<${botName}>" "${file}" 2>/dev/null | sed 's/.*] //' | sort -u | wc -l`).toString().trim();
-  } catch { return '0'; }
+    return parseInt(execSync(`grep "Not Secure.*<${botName}>" "${file}" 2>/dev/null | sed 's/.*] //' | sort -u | wc -l`).toString().trim()) || 0;
+  } catch { return 0; }
 }
 
 function topChatLines(file, botName, n = 5) {

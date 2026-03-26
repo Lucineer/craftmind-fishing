@@ -999,7 +999,7 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
 
       // Register all registry scripts with the runner
       const registryScripts = scriptRegistry.list();
-      const hasV2Plus = registryScripts.some(e => e.name && e.name.startsWith('v2-') || e.name?.startsWith('v3-'));
+      const hasV2Plus = registryScripts.some(e => e.filename?.match(/v[2-9]/) || (e.version || 1) >= 2);
       const preferredScript = process.env.CODY_SCRIPT || null;
 
       for (const entry of registryScripts) {
