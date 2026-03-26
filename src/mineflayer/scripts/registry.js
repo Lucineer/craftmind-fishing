@@ -18,9 +18,9 @@ export class ScriptRegistry {
    */
   async loadAll() {
     const files = await readdir(__dirname);
-    const v1Files = files.filter(f => /^v1-.*\.js$/.test(f));
+    const vFiles = files.filter(f => /^v[0-9]+-.*\.js$/.test(f));
 
-    for (const file of v1Files) {
+    for (const file of vFiles) {
       try {
         const mod = await import(`file://${join(__dirname, file)}`);
         const script = mod.default;
