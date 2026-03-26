@@ -11,6 +11,9 @@
 
 import { SitkaFishingGame, METHOD_BIOME_RULES } from '../integration/game-engine.js';
 import { MinecraftFishing } from './minecraft-fishing.js';
+import { ScriptRunner, Script } from './script-engine.js';
+import { createFishingScripts } from './scripts/fishing.js';
+import { ScriptRegistry } from './scripts/registry.js';
 
 // ── AI Modules ───────────────────────────────────────────────────────────────
 
@@ -370,6 +373,36 @@ const fishingCommands = [
       ctx._mcFishing?.showBalance(ctx.username || ctx.bot?.username || 'player');
     },
   },
+  {
+    name: 'scripts',
+    description: 'List available personality scripts',
+    usage: '!scripts',
+    execute(ctx) {
+      const registry = ctx._scriptRegistry;
+      if (!registry) return ctx.reply('Script registry not loaded.');
+      const scripts = registry.list();
+      if (scripts.length === 0) return ctx.reply('No scripts available.');
+      const current = ctx._scriptRunner?.currentScript || 'none';
+      const lines = scripts.map(s => {
+        const active = s.name === current ? ' ◄' : '';
+        return `${s.name}${active} — ${s.description}`;
+      });
+      ctx.reply(`Scripts (${scripts.length}): ${lines.join(' | ')}`);
+    },
+  },
+  {
+    name: 'script',
+    description: 'Switch Cody\'s personality script',
+    usage: '!script <name>',
+    execute(ctx, name) {
+      if (!name) return ctx.reply('Usage: !script <name>. Use !scripts to list.');
+      const registry = ctx._scriptRegistry;
+      if (!registry) return ctx.reply('Script registry not loaded.');
+      const scriptData = registry.get(name);
+      if (!scriptData) return ctx.reply(`Unknown script: ${name}`);
+      ctx._scriptRunner?.switchToV1({ ...scriptData, name }, `Alright, let me try ${name}.`);
+    },
+  },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -429,14 +462,26 @@ function buildBehaviorTree(ai, game, ctx, actions) {
     return hour >= 21 || hour < 5.5;
   });
   const shouldFish = new Condition('should_fish', () => {
-    const state = game.getState?.();
-    if (!state) return false;
-    const hour = (state.gameTime || 0) % 24;
-    const decision = ai.personality.shouldGoFishing({
-      weatherType: state.weather?.type,
-      seaState: state.weather?.seaState,
-    });
-    return decision.go && hour >= 7 && hour < 16;
+    // Script runner handles fishing now
+    if (ctx._scriptRunner?.isRunning) return false;
+    // Fallback for when script runner isn't active
+    const hasRod = ctx.bot?.inventory?.items().some(i => i.name.includes('fishing_rod'));
+    if (!hasRod) return false;
+    // Check if near water (look for water blocks)
+    const pos = ctx.bot?.entity?.position;
+    if (!pos) return false;
+    try {
+      const waterId = ctx.bot.registry.blocksByName.water?.id;
+      if (!waterId) return false;
+      const waterBlock = ctx.bot.findBlock({
+        matching: waterId,
+        maxDistance: 5,
+      });
+      if (!waterBlock) return false;
+      return true;
+    } catch (e) {
+      return false;
+    }
   });
   const wantsToSocialize = new Condition('wants_social', () => {
     const state = game.getState?.();
@@ -504,71 +549,58 @@ function buildBehaviorTree(ai, game, ctx, actions) {
   });
 
   const decidePlan = new Action('decide_plan', () => {
-    const decision = ai.personality.shouldGoFishing({
-      weatherType: game.getState?.().weather?.type,
-      seaState: game.getState?.().weather?.seaState,
-    });
-    ctx.bot?.chat?.(decision.reason);
-    bb.set('fishingDecision', decision.go);
     bb.set('lastAction', 'decide_plan');
-    ai.memory.addEpisode({ type: 'planned_day', data: { going: decision.go, reason: decision.reason } });
-    // Nod or shake head based on decision
-    if (decision.go) {
-      actions.nod().catch(() => {});
-    } else {
-      actions.shakeHead().catch(() => {});
-    }
     return Status.SUCCESS;
   });
 
-  const prepareGear = new Action('prepare_gear', () => {
+  const prepareGear = new Action('prepare_gear', async () => {
     ctx.bot?.chat?.('Getting my gear ready.');
     bb.set('lastAction', 'prepare_gear');
-    // Equip fishing rod
-    actions.equipRod().catch(() => {});
+    const rod = ctx.bot?.inventory?.items()?.find(i => i.name.includes('fishing_rod'));
+    if (rod) {
+      await ctx.bot.equip(rod, 'hand');
+    }
     return Status.SUCCESS;
   });
 
   const goFishing = new Action('go_fishing', async () => {
-    if (!game.player.isFishing && !bb.get('_mcFishing')) {
-      const state = game.getState();
-      const biome = state?.player?.location?.biome || 'sheltered_sound';
-      const method = _bestMethod(biome, game) || 'salmon_trolling';
-      const result = game.startFishing(method);
-      if (result.success) {
-        ai.memory.updateWorking({ task: 'fishing', location: biome });
-        ai.memory.addEpisode({ type: 'started_fishing', data: { method, biome } });
-
-        // Walk to water, equip rod visually, then use bot.fish() for real fishing
-        actions.startFishingSequence().then(async () => {
-          ctx.bot?.chat?.(pickRandom([
-            "Lines in the water. Now we wait.",
-            "Fishing. Don't jinx it by talking.",
-            "Here we go.",
-          ]));
-          // Now actually fish using mineflayer's built-in fishing
-          if (ctx._mcFishing) {
-            const fishResult = await ctx._mcFishing.fishAsBot();
-            if (fishResult.caught) {
-              const sp = game.species[fishResult.species] || { name: fishResult.species };
-              game.player.statistics.totalFishCaught++;
-              ai.memory.addEpisode({
-                type: 'caught_fish',
-                data: { catch: [{ speciesId: fishResult.species, weight: fishResult.weight }] },
-                tags: ['fishing', 'success'],
-              });
-              ai.memory.updateWorking({
-                fishCount: (ai.memory.working.fishCount || 0) + 1,
-              });
-            }
-          }
-          bb.set('_mcFishing', null);
-        }).catch(() => { bb.set('_mcFishing', null); });
-        bb.set('_mcFishing', true);
-      }
-    }
+    bb.set('_mcFishing', true);
     bb.set('lastAction', 'go_fishing');
-    return (game.player.isFishing || bb.get('_mcFishing')) ? Status.RUNNING : Status.SUCCESS;
+
+    // Start fishing in background — don't await (BT can't block)
+    ctx.bot.equip(ctx.bot.inventory.items().find(i => i.name.includes('fishing_rod')), 'hand').catch(() => {});
+    
+    ctx.bot.chat(pickRandom([
+      "Lines in the water. Now we wait.",
+      "Fishing. Don't jinx it.",
+      "Here we go.",
+    ]));
+
+    // Look at nearest water
+    try {
+      const waterBlock = ctx.bot.findBlock({ matching: ctx.bot.registry.blocksByName.water?.id, maxDistance: 10 });
+      if (waterBlock) ctx.bot.lookAt(waterBlock.position);
+    } catch {}
+
+    // Fish in background
+    (async () => {
+      try {
+        if (ctx._mcFishing) {
+          const result = await ctx._mcFishing.fishAsBot();
+          if (result.caught) {
+            ctx.bot.chat(pickRandom(["Got one!", "Fish on!", "That's what I'm talking about."]));
+          } else {
+            ctx.bot.chat(pickRandom(["Nothing biting.", "Dry run.", "Patience."]));
+          }
+        }
+      } catch (e) {
+        console.error('[goFishing]', e.message);
+      } finally {
+        bb.set('_mcFishing', false);
+      }
+    })();
+
+    return Status.SUCCESS;
   });
 
   const checkBite = new Action('check_bite', () => {
@@ -639,6 +671,8 @@ function buildBehaviorTree(ai, game, ctx, actions) {
   });
 
   const idleBehavior = new Action('idle', () => {
+    // If script runner is active, do nothing — let scripts handle behavior
+    if (ctx._scriptRunner?.isRunning) return Status.SUCCESS;
     if (!bb.get('_idleTimer') || Date.now() - bb.get('_idleTimer') > 3000) {
       // Actually perform visible idle animations
       actions.doIdleAction().catch(() => {});
@@ -698,10 +732,9 @@ function buildBehaviorTree(ai, game, ctx, actions) {
     new Sequence('fishing_routine', [
       shouldFish,
       new Selector('fishing_actions', [
-        isFishing,
+        new Condition('already_fishing', () => bb.get('_mcFishing')),
         new Sequence('start_fishing', [decidePlan, prepareGear, goFishing]),
       ]),
-      checkBite,
     ]),
 
     // Social
@@ -949,6 +982,71 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
       relationships.save();
     }, 60_000);
 
+    // ── Stochastic Script Runner (replaces BT for natural behavior) ──
+    let scriptRunner = null;
+    let scriptRegistry = null;
+    try {
+      scriptRunner = new ScriptRunner(ctx.bot, {});
+
+      // Load legacy scripts
+      const scripts = createFishingScripts(ctx.bot);
+      for (const s of scripts) {
+        scriptRunner.register(s);
+      }
+
+      // Load v1 script registry
+      scriptRegistry = new ScriptRegistry();
+      await scriptRegistry.loadAll();
+      ctx._scriptRegistry = scriptRegistry;
+
+      // Register all v1 scripts with the runner
+      for (const entry of scriptRegistry.list()) {
+        const data = scriptRegistry.get(entry.name);
+        if (data && !scriptRunner.scripts.has(entry.name)) {
+          scriptRunner.register(new Script(entry.name, data.steps));
+        }
+      }
+
+      // Start auto-run after 8 seconds (let BT handle initial survival setup)
+      setTimeout(() => {
+        if (ctx.bot?.entity) {
+          // Use CODY_SCRIPT env var or default to social_fisher
+          const preferredScript = process.env.CODY_SCRIPT || 'social_fisher';
+          if (scriptRegistry.get(preferredScript)) {
+            scriptRunner.switchToV1({ ...scriptRegistry.get(preferredScript), name: preferredScript });
+            console.log(`[FishingPlugin] Starting with script: ${preferredScript}`);
+          } else {
+            scriptRunner.startAutoRun(3000);
+          }
+          console.log('[FishingPlugin] Script runner started 🎲');
+        }
+      }, 8000);
+      ctx._scriptRunner = scriptRunner;
+    } catch (err) {
+      console.warn('[FishingPlugin] Script runner init failed (non-fatal):', err.message);
+    }
+
+    // ── Telemetry Bridge (write stats every 60s) ────────────
+    const telemetryLoop = setInterval(() => {
+      if (!ctx.bot?.entity) return;
+      const stats = {
+        fishCaught: scriptRunner?.context?.fishCaught || 0,
+        deaths: 0, // tracked externally from logs
+        totalChats: ctx._ai?.memory?.working?.interactions || 0,
+        uniqueChats: 0, // tracked externally from logs
+        currentScript: scriptRunner?.currentScript || 'none',
+        mood: scriptRunner?.mood?.mood?.toFixed(2) || '0.50',
+        energy: scriptRunner?.mood?.energy?.toFixed(2) || '1.00',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+      };
+      try {
+        const fs = await import('node:fs');
+        fs.writeFileSync('/tmp/sim-stats.json', JSON.stringify(stats, null, 2));
+      } catch {}
+    }, 60000);
+    this._telemetryLoop = telemetryLoop;
+
     // ── Spawn event ──────────────────────────────────────────
     ctx.events.on('SPAWN', () => {
       memory.resetSession();
@@ -1102,6 +1200,7 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
     clearInterval(this._behaviorLoop);
     clearInterval(this._gameLoop);
     clearInterval(this._saveLoop);
+    clearInterval(this._telemetryLoop);
     if (this._ctx?._survival) this._ctx._survival.stop();
     if (this._ctx?._ai) {
       this._ctx._ai.memory.save();
