@@ -139,6 +139,20 @@ export class ScriptRunner {
     this._isFishing = false;
     this._tickInterval = null;
 
+    // Built-in action handlers (for step.exec strings)
+    this.actions = {
+      look_around: () => {
+        this.bot.look(
+          this.bot.entity.yaw + (Math.random() - 0.5) * Math.PI,
+          Math.PI / 6 + Math.random() * Math.PI / 6,
+        );
+      },
+      equip_rod: () => {
+        const rod = this.bot.inventory.items().find(i => i.name === 'fishing_rod');
+        if (rod) this.bot.equip(rod, 'hand');
+      },
+    };
+
     // Wire up events
     this.bot.on('playerCollect', (collector, entity) => {
       if (collector.username === this.bot.username) {
@@ -301,9 +315,15 @@ export class ScriptRunner {
     switch (step.type) {
       case 'action':
         try {
-          await step.fn();
+          if (step.fn) {
+            await step.fn();
+          } else if (step.exec && this.actions && this.actions[step.exec]) {
+            await this.actions[step.exec]();
+          } else {
+            console.warn(`[ScriptRunner] Action "${step.name || step.exec}" has no fn/exec handler`);
+          }
         } catch (e) {
-          console.error(`[ScriptRunner] Action "${step.name}" error:`, e.message);
+          console.error(`[ScriptRunner] Action "${step.name || step.exec}" error:`, e.message);
         }
         break;
 
@@ -349,7 +369,8 @@ export class ScriptRunner {
                     maxDistance: 20,
                   });
                   if (treeBlock) {
-                    await this.bot.pathfinder.setGoal(new (this.bot.pathfinder.goals.GoalBlock)(treeBlock.x, treeBlock.y, treeBlock.z));
+                    const { goals } = require('mineflayer-pathfinder');
+                    this.bot.pathfinder.setGoal(new goals.GoalBlock(treeBlock.x, treeBlock.y, treeBlock.z));
                     await this._wait(5000);
                     // Break the block
                     const targetBlock = this.bot.blockAt(treeBlock.position);
