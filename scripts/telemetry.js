@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// Telemetry collector — scrapes all test servers every 60s
+// Telemetry collector v2 — reads per-server stat files + server logs
 // Outputs to /tmp/sim-telemetry.jsonl (append-only JSON lines)
 import fs from 'fs';
 import { execSync } from 'child_process';
 
 const SERVERS = [
-  { port: 25566, rcon: 25576, name: 'Alpha', log: '/tmp/server-25566.log' },
-  { port: 25567, rcon: 25577, name: 'Beta', log: '/tmp/server-25567.log' },
-  { port: 25568, rcon: 25578, name: 'Gamma', log: '/tmp/server-25568.log' },
+  { port: 25566, name: 'Alpha', log: '/tmp/server-25566.log', botName: 'Cody_A' },
+  { port: 25567, name: 'Beta', log: '/tmp/server-25567.log', botName: 'Cody_B' },
+  { port: 25568, name: 'Gamma', log: '/tmp/server-25568.log', botName: 'Cody_C' },
 ];
 
 const OUTFILE = '/tmp/sim-telemetry.jsonl';
@@ -30,25 +30,55 @@ function topChatLines(file, botName, n = 5) {
   } catch { return ''; }
 }
 
+function readPerServerStats(port) {
+  try {
+    const data = fs.readFileSync(`/tmp/stats-${port}.json`, 'utf8');
+    return JSON.parse(data);
+  } catch {
+    return null;
+  }
+}
+
 function collect() {
   const timestamp = new Date().toISOString();
   const snapshot = { timestamp, servers: {} };
 
   for (const s of SERVERS) {
-    const botName = `Cody_${s.name[0]}`; // Cody_A, Cody_B, Cody_C
+    // Read per-server stats from bot's own telemetry (accurate fish count)
+    const botStats = readPerServerStats(s.port);
+    
+    // Also scrape server logs for chat data (can't get this client-side easily)
+    const logChats = countPattern(s.log, `<${s.botName}>`);
+    const logUnique = uniqueChatLines(s.log, s.botName);
+    const logDeaths = countPattern(s.log, 'was slain\\|died\\|blew up');
+    const logTopLines = topChatLines(s.log, s.botName, 3);
+
     snapshot.servers[s.name] = {
-      fishCaught: countPattern(s.log, 'Fishy Business'),
-      deaths: countPattern(s.log, 'was slain\\|died\\|blew up'),
-      totalChats: countPattern(s.log, `<${botName}>`),
-      uniqueChats: uniqueChatLines(s.log, botName),
-      advancements: countPattern(s.log, 'Advancement'),
-      topLines: topChatLines(s.log, botName, 3),
+      // Client-side stats (accurate)
+      fishCaught: botStats?.fishCaught || 0,
+      currentScript: botStats?.currentScript || 'unknown',
+      mood: botStats?.mood || '0.50',
+      energy: botStats?.energy || '1.00',
+      botUptime: botStats?.uptime || 0,
+      server: botStats?.server || s.name,
+      // Log-scraped stats
+      totalChats: logChats,
+      uniqueChats: logUnique,
+      deaths: logDeaths,
+      topLines: logTopLines,
+      // Computed
+      fishPerMinute: botStats?.uptime > 60 ? ((botStats.fishCaught || 0) / (botStats.uptime / 60)).toFixed(1) : '—',
     };
   }
 
   const line = JSON.stringify(snapshot) + '\n';
   fs.appendFileSync(OUTFILE, line);
-  console.log(`[${timestamp}] ${JSON.stringify(snapshot.servers)}`);
+  
+  // Summary line
+  const summary = Object.entries(snapshot.servers).map(([name, s]) =>
+    `${name}:🐟${s.fishCaught} 💬${s.totalChats}(${s.uniqueChats}u) ${s.fishPerMinute}/min 😊${s.mood} [${s.currentScript}]`
+  ).join(' | ');
+  console.log(`[${timestamp}] ${summary}`);
 }
 
 // Collect once, then every 60s

@@ -1061,6 +1061,8 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
     }
 
     // ── Telemetry Bridge (write stats every 60s) ────────────
+    const serverPort = ctx.bot?.options?.port || 0;
+    const serverName = serverPort === 25566 ? 'Alpha' : serverPort === 25567 ? 'Beta' : serverPort === 25568 ? 'Gamma' : `port${serverPort}`;
     const telemetryLoop = setInterval(() => {
       if (!ctx.bot?.entity) return;
       const stats = {
@@ -1072,11 +1074,15 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
         mood: scriptRunner?.mood?.mood?.toFixed(2) || '0.50',
         energy: scriptRunner?.mood?.energy?.toFixed(2) || '1.00',
         uptime: process.uptime(),
+        server: serverName,
         timestamp: new Date().toISOString(),
       };
       try {
         (async () => {
           const fs = await import('node:fs');
+          // Per-server stat file
+          fs.writeFileSync(`/tmp/stats-${serverPort}.json`, JSON.stringify(stats, null, 2));
+          // Also write combined for backward compat (last writer wins)
           fs.writeFileSync('/tmp/sim-stats.json', JSON.stringify(stats, null, 2));
         })();
       } catch {}

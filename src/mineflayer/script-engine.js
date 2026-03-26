@@ -456,6 +456,9 @@ export class ScriptRunner {
             }
             if (!rod) {
               this._isFishing = false;
+              // Wait 30s before trying again to avoid spam loop
+              console.log('[ScriptRunner] No rod available — waiting 30s');
+              await this._wait(30000);
               break;
             }
           }
