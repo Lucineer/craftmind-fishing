@@ -223,9 +223,13 @@ export class ScriptRunner {
   /** Auto-run: picks next script based on context after current finishes */
   startAutoRun(tickMs = 2000) {
     this._tickInterval = setInterval(() => {
-      this.mood.tick();
-      if (!this._running) {
-        this._pickNextScript();
+      try {
+        this.mood.tick();
+        if (!this._running) {
+          this._pickNextScript();
+        }
+      } catch (e) {
+        console.error('[ScriptRunner] Auto-run error:', e.message);
       }
     }, tickMs);
   }
@@ -244,7 +248,7 @@ export class ScriptRunner {
 
     // If we have registered scripts, pick from them (weighted by mood/context)
     if (this._scripts.size > 0) {
-      const hasPlayers = this.context.playersSeen.size > 0;
+      const hasPlayers = this.context?.playersSeen?.size > 0;
       const energy = this.mood.energy;
       
       // Build weighted choices from registered scripts
