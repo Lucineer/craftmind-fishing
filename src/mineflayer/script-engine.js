@@ -192,6 +192,7 @@ export class ScriptRunner {
     this._currentScript = script;
     this.context.currentScript = script.name;
     this._running = true;
+    console.log(`[ScriptRunner] ▶ Running: ${script.name} (${script.steps?.length || 0} steps)`);
 
     try {
       await this._executeSteps(script.steps);
@@ -247,13 +248,13 @@ export class ScriptRunner {
     }
 
     // If we have registered scripts, pick from them (weighted by mood/context)
-    if (this._scripts.size > 0) {
+    if (this.scripts.size > 0) {
       const hasPlayers = this.context?.playersSeen instanceof Set ? this.context.playersSeen.size > 0 : false;
       const energy = this.mood.energy;
       
       // Build weighted choices from registered scripts
       const choices = [];
-      for (const [name, script] of this._scripts) {
+      for (const [name, script] of this.scripts) {
         let weight = 1.0;
         // Prefer fishing scripts when no players around
         if (name.includes('fish') && !hasPlayers) weight *= 1.5;
@@ -278,8 +279,8 @@ export class ScriptRunner {
     }
 
     // Fallback: try the legacy script names if they exist
-    const fallback = this._scripts.has('afternoon_fish') ? 'afternoon_fish' : 
-                     [...this._scripts.keys()][0] || null;
+    const fallback = this.scripts.has('afternoon_fish') ? 'afternoon_fish' : 
+                     [...this.scripts.keys()][0] || null;
     if (fallback) {
       this.run(fallback);
     }
