@@ -10,6 +10,7 @@
  */
 
 import { SitkaFishingGame, METHOD_BIOME_RULES } from '../integration/game-engine.js';
+import { MinecraftFishing } from './minecraft-fishing.js';
 
 // ── AI Modules ───────────────────────────────────────────────────────────────
 
@@ -343,6 +344,32 @@ const fishingCommands = [
       ctx.reply(`Biome: ${biome} | Nearest: ${nearest.name} (${Math.round(nearest.distance)}m)`);
     },
   },
+  {
+    name: 'shop',
+    description: 'Show the tackle shop',
+    usage: '!shop',
+    execute(ctx) {
+      ctx._mcFishing?.showShop(ctx.username || ctx.bot?.username || 'player');
+    },
+  },
+  {
+    name: 'buy',
+    description: 'Buy from the shop',
+    usage: '!buy <item>',
+    execute(ctx, itemId) {
+      if (!itemId) return ctx.reply('Usage: !buy <item>. Type !shop to see items.');
+      ctx._mcFishing?.buyItem(ctx.username || ctx.bot?.username, itemId);
+    },
+  },
+  {
+    name: 'balance',
+    description: 'Check your money and fish count',
+    usage: '!balance',
+    aliases: ['bal', '$'],
+    execute(ctx) {
+      ctx._mcFishing?.showBalance(ctx.username || ctx.bot?.username || 'player');
+    },
+  },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -503,7 +530,7 @@ function buildBehaviorTree(ai, game, ctx, actions) {
   });
 
   const goFishing = new Action('go_fishing', async () => {
-    if (!game.player.isFishing) {
+    if (!game.player.isFishing && !bb.get('_mcFishing')) {
       const state = game.getState();
       const biome = state?.player?.location?.biome || 'sheltered_sound';
       const method = _bestMethod(biome, game) || 'salmon_trolling';
@@ -512,18 +539,36 @@ function buildBehaviorTree(ai, game, ctx, actions) {
         ai.memory.updateWorking({ task: 'fishing', location: biome });
         ai.memory.addEpisode({ type: 'started_fishing', data: { method, biome } });
 
-        // Actually walk to water, look, equip rod, cast
-        actions.startFishingSequence().then(() => {
+        // Walk to water, equip rod visually, then use bot.fish() for real fishing
+        actions.startFishingSequence().then(async () => {
           ctx.bot?.chat?.(pickRandom([
             "Lines in the water. Now we wait.",
             "Fishing. Don't jinx it by talking.",
             "Here we go.",
           ]));
-        }).catch(() => {});
+          // Now actually fish using mineflayer's built-in fishing
+          if (ctx._mcFishing) {
+            const fishResult = await ctx._mcFishing.fishAsBot();
+            if (fishResult.caught) {
+              const sp = game.species[fishResult.species] || { name: fishResult.species };
+              game.player.statistics.totalFishCaught++;
+              ai.memory.addEpisode({
+                type: 'caught_fish',
+                data: { catch: [{ speciesId: fishResult.species, weight: fishResult.weight }] },
+                tags: ['fishing', 'success'],
+              });
+              ai.memory.updateWorking({
+                fishCount: (ai.memory.working.fishCount || 0) + 1,
+              });
+            }
+          }
+          bb.set('_mcFishing', null);
+        }).catch(() => { bb.set('_mcFishing', null); });
+        bb.set('_mcFishing', true);
       }
     }
     bb.set('lastAction', 'go_fishing');
-    return game.player.isFishing ? Status.RUNNING : Status.SUCCESS;
+    return (game.player.isFishing || bb.get('_mcFishing')) ? Status.RUNNING : Status.SUCCESS;
   });
 
   const checkBite = new Action('check_bite', () => {
@@ -739,6 +784,15 @@ const fishingPlugin = {
       ctx._worldManager = null;
     }
 
+    // ── Initialize Minecraft Fishing Bridge ──────────────────
+    const mcFishing = new MinecraftFishing(ctx.bot, ctx._worldManager);
+    ctx._mcFishing = mcFishing;
+    try {
+      await mcFishing.init();
+    } catch (err) {
+      console.warn('[FishingPlugin] MinecraftFishing init failed (non-fatal):', err.message);
+    }
+
     // Create Actions instance for real mineflayer movements
     let actions = null;
     if (ctx.bot) {
@@ -794,7 +848,7 @@ const fishingPlugin = {
       ctx.commands.register({
         ...cmd,
         execute(c, ...args) {
-          cmd.execute({ ...c, _fishingGame: game, _ai: ctx._ai, username: c.username }, ...args);
+          cmd.execute({ ...c, _fishingGame: game, _ai: ctx._ai, _mcFishing, username: c.username }, ...args);
         },
       });
     }
@@ -840,6 +894,7 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
 
     ctx.registerMethod('getFishingGame', () => game);
     ctx.registerMethod('getAI', () => ctx._ai);
+    ctx.registerMethod('getMinecraftFishing', () => mcFishing);
 
     // ── Behavior tree tick loop (500ms) ──────────────────────
     const tickInterval = 500;
