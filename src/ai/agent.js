@@ -215,7 +215,7 @@ export class Agent {
 
     // Record the interaction
     this.relationships.interact(targetName, interaction.type);
-    this.memory.remember({
+    this.memory.addEpisode({
       type: 'social',
       target: targetName,
       interaction: interaction.type,
@@ -354,7 +354,7 @@ export class Agent {
    */
   handleEvent(event) {
     this.personality.mood.update(event);
-    this.memory.remember(event);
+    this.memory.addEpisode(event);
 
     if (event.type === 'caught_fish') {
       this.todayCatch.push(event.fish || { weight: event.value || 1, species: 'unknown' });

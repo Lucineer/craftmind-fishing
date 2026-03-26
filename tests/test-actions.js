@@ -353,16 +353,11 @@ const tests22 = async () => {
   actions._cancelled = false;
   mockBot.pathfinder._goal = null;
 
-  // Start fishing sequence (async, runs in background)
+  // Test the sequence doesn't crash — use a short timeout
   const seqPromise = actions.startFishingSequence();
-
-  // Wait a bit for it to set up the pathfinding goal
-  await new Promise(r => setTimeout(r, 300));
-
-  // The sequence should have set a pathfinding goal (walk to water)
-  // Note: it may not have due to async timing, so we just check it doesn't crash
-  actions.cancel();
-  actions._busy = false;
+  // The sequence will hang on walkTo (mock can't resolve pathfinding)
+  // Cancel after a short wait
+  setTimeout(() => { actions.cancel(); actions._busy = false; }, 500);
   await seqPromise.catch(() => {});
   assert(true, 'Fishing sequence completes without crash');
 };
@@ -386,5 +381,6 @@ const tests22 = async () => {
   console.log(`\n${'═'.repeat(50)}`);
   console.log(`  🤖 Actions Results: ✅ ${passed} passed, ❌ ${failed} failed`);
   console.log(`${'═'.repeat(50)}\n`);
+  // Force exit to clear any hanging timeouts from mock pathfinding
   process.exit(failed > 0 ? 1 : 0);
 })();

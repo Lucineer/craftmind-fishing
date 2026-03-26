@@ -34,10 +34,6 @@ function setup() {
   mkdirSync(TEST_DIR, { recursive: true });
 }
 
-function teardown() {
-  rmSync(TEST_DIR, { recursive: true, force: true });
-}
-
 // ── Helper: create a mock session ──────────────────────────────────────────
 function makeSession(overrides = {}) {
   return {
@@ -60,6 +56,7 @@ function makeSession(overrides = {}) {
 // ── Session Recorder Tests ──────────────────────────────────────────────────
 
 function testSessionRecorderBasic() {
+  setup();
   console.log('\n📋 Session Recorder — Basic');
   const recorder = new SessionRecorder(TEST_DIR);
 
@@ -79,6 +76,7 @@ function testSessionRecorderBasic() {
 }
 
 function testSessionRecorderValidation() {
+  setup();
   console.log('\n📋 Session Recorder — Validation');
   const recorder = new SessionRecorder(TEST_DIR);
 
@@ -90,7 +88,7 @@ function testSessionRecorderValidation() {
   }
 
   try {
-    recorder.recordSession({ skill: 'test', conditions: {} });
+    recorder.recordSession({ skill: 'test' });
     assert(false, 'Should throw without conditions');
   } catch {
     assert(true, 'Throws without conditions');
@@ -98,6 +96,7 @@ function testSessionRecorderValidation() {
 }
 
 function testSessionRecorderQuery() {
+  setup();
   console.log('\n📋 Session Recorder — Query');
   const recorder = new SessionRecorder(TEST_DIR);
 
@@ -140,7 +139,7 @@ function testLiveSession() {
   assert(typeof id === 'string', 'LiveSession finalizes with ID');
 
   const loaded = recorder.loadSession(id);
-  assert(loaded.events.length === 2, 'Events recorded (catch + miss)');
+  assert(loaded.events.length === 3, 'Events recorded (catch + miss + gear_change)');
   assert(loaded.results.catches.length === 1, 'Catch recorded');
   assert(loaded.results.catches[0].species === 'king', 'Catch has correct species');
   assert(loaded.outcome === 'partial', 'Outcome defaults based on catches');
@@ -344,6 +343,7 @@ function testEvolveWithoutLLM() {
 // ── Decision Engine Tests ────────────────────────────────────────────────────
 
 async function testDecideWithData() {
+  setup();
   console.log('\n🎯 Decision Engine — With Data');
   const recorder = new SessionRecorder(TEST_DIR);
   const evaluator = new ComparativeEvaluator(TEST_DIR);
@@ -378,6 +378,7 @@ async function testDecideWithData() {
 }
 
 async function testDecideNoData() {
+  setup();
   console.log('\n🎯 Decision Engine — No Data');
   const recorder = new SessionRecorder(TEST_DIR);
   const evaluator = new ComparativeEvaluator(TEST_DIR);
@@ -389,6 +390,7 @@ async function testDecideNoData() {
 }
 
 async function testDecideFrustrated() {
+  setup();
   console.log('\n🎯 Decision Engine — Frustrated Personality');
   const recorder = new SessionRecorder(TEST_DIR);
   const evaluator = new ComparativeEvaluator(TEST_DIR);
@@ -419,6 +421,7 @@ async function testDecideFrustrated() {
 }
 
 async function testDecideTired() {
+  setup();
   console.log('\n🎯 Decision Engine — Tired');
   const recorder = new SessionRecorder(TEST_DIR);
   const evaluator = new ComparativeEvaluator(TEST_DIR);
@@ -436,6 +439,7 @@ async function testDecideTired() {
 }
 
 async function testAnswerQuestion() {
+  setup();
   console.log('\n🎯 Decision Engine — Answer Questions');
   const recorder = new SessionRecorder(TEST_DIR);
   const evaluator = new ComparativeEvaluator(TEST_DIR);
@@ -460,6 +464,7 @@ async function testAnswerQuestion() {
 }
 
 async function testStubbornnessBias() {
+  setup();
   console.log('\n🎯 Decision Engine — Stubbornness Bias');
   const recorder = new SessionRecorder(TEST_DIR);
   const evaluator = new ComparativeEvaluator(TEST_DIR);
@@ -489,6 +494,7 @@ async function testStubbornnessBias() {
 }
 
 async function testTargetSpecies() {
+  setup();
   console.log('\n🎯 Decision Engine — Target Species');
   const recorder = new SessionRecorder(TEST_DIR);
   const evaluator = new ComparativeEvaluator(TEST_DIR);

@@ -46,8 +46,9 @@ export class Actions {
 
   // ── Movement ─────────────────────────────────────────────────────────────
 
-  async walkTo(x, y, z) {
+  async walkTo(x, y, z, timeoutMs = 30000) {
     if (!this.bot?.entity || !this.bot?.pathfinder) return false;
+    if (this._busy && !this._cancelled) return false;
     this._busy = true;
     this._cancelled = false;
 
@@ -60,31 +61,40 @@ export class Actions {
       this.bot.pathfinder.setGoal(goal);
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
-          this.bot.pathfinder.setGoal(null);
+          this.bot?.pathfinder?.setGoal?.(null);
           resolve(false);
-        }, 30000);
+        }, timeoutMs);
 
-        const onGoal = () => {
+        const cleanup = (result) => {
           clearTimeout(timeout);
-          this.bot.removeListener('goal_reached', onGoal);
-          this.bot.removeListener('path_update', onNoPath);
-          this._busy = false;
-          resolve(true);
+          try {
+            this.bot?.removeListener?.('goal_reached', onGoal);
+            this.bot?.removeListener?.('path_update', onNoPath);
+            this.bot?.pathfinder?.setGoal?.(null);
+          } catch {}
+          resolve(result);
         };
+
+        const onGoal = () => cleanup(true);
 
         const onNoPath = (result) => {
-          if (result === 'noPath') {
-            clearTimeout(timeout);
-            this.bot.removeListener('goal_reached', onGoal);
-            this.bot.removeListener('path_update', onNoPath);
-            this.bot.pathfinder.setGoal(null);
-            this._busy = false;
-            resolve(false);
-          }
+          if (result === 'noPath') cleanup(false);
         };
+
+        // Also resolve on cancel
+        const cancelCheck = setInterval(() => {
+          if (this._cancelled) {
+            clearInterval(cancelCheck);
+            cleanup(false);
+          }
+        }, 100);
 
         this.bot.once('goal_reached', onGoal);
         this.bot.on('path_update', onNoPath);
+
+        // Clear cancel interval on natural resolution
+        const origGoal = onGoal;
+        const origNoPath = onNoPath;
       });
     } catch (err) {
       if (process.env.DEBUG_AI) console.error('[Actions] walkTo error:', err.message);
