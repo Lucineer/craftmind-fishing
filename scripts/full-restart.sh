@@ -39,7 +39,7 @@ cd /home/lucineer/projects/craftmind
 for entry in "25566 Cody_A" "25567 Cody_B" "25568 Cody_C"; do
   port=$(echo $entry | cut -d' ' -f1)
   name=$(echo $entry | cut -d' ' -f2)
-  nohup bash -c "source .env && node --unhandled-rejections=warn src/bot.js localhost ${port} ${name} --plugin ../craftmind-fishing/src/mineflayer/fishing-plugin.js" > /tmp/bot-${port}.log 2>&1 &
+  nohup bash -c "export SERVER_PORT=${port} && source .env && node --unhandled-rejections=warn src/bot.js localhost ${port} ${name} --plugin ../craftmind-fishing/src/mineflayer/fishing-plugin.js" > /tmp/bot-${port}.log 2>&1 &
   echo "  ${name}: starting"
 done
 

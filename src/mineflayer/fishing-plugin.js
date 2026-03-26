@@ -1061,7 +1061,8 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
     }
 
     // ── Telemetry Bridge (write stats every 60s) ────────────
-    const serverPort = ctx.bot?.options?.port || 0;
+    // Detect server from env (set by startup script) or bot options
+    const serverPort = parseInt(process.env.SERVER_PORT) || ctx.bot?.options?.port || 0;
     const serverName = serverPort === 25566 ? 'Alpha' : serverPort === 25567 ? 'Beta' : serverPort === 25568 ? 'Gamma' : `port${serverPort}`;
     const telemetryLoop = setInterval(() => {
       if (!ctx.bot?.entity) return;
