@@ -20,6 +20,14 @@ import { Personality } from '../ai/personality.js';
 import { Memory } from '../ai/memory.js';
 import { Relationships } from '../ai/relationships.js';
 import { SkillLibrary } from '../ai/skill-library.js';
+import { SessionRecorder } from '../ai/session-recorder.js';
+import { ComparativeEvaluator } from '../ai/comparative-evaluator.js';
+import { ScriptEvolver } from '../ai/script-evolver.js';
+import { DecisionEngine } from '../ai/decision-engine.js';
+import { Actions } from './actions.js';
+import { ActionPlanner } from '../ai/action-planner.js';
+import { ActionExecutor } from '../ai/action-executor.js';
+import { ConversationMemory } from '../ai/conversation-memory.js';
 
 // ── Fishing commands ──────────────────────────────────────────────────────────
 
@@ -311,7 +319,7 @@ function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 // ── Build Behavior Tree ───────────────────────────────────────────────────────
 
-function buildBehaviorTree(ai, game, ctx) {
+function buildBehaviorTree(ai, game, ctx, actions) {
   const bb = new Blackboard();
 
   // ── Condition checks ──────────────────────────────────────
@@ -352,16 +360,20 @@ function buildBehaviorTree(ai, game, ctx) {
     return state?.weather?.type === 'storm' || state?.weather?.seaState > 4;
   });
 
-  // ── Actions ───────────────────────────────────────────────
+  // ── Actions (now with real mineflayer movements!) ─────────
   const flee = new Action('flee', () => {
     bb.set('lastAction', 'flee');
     ctx.bot?.chat?.('Getting out of here!');
+    // Actually walk away from current position
+    actions.walkInDirection(10).catch(() => {});
     return Status.SUCCESS;
   });
 
   const seekShelter = new Action('seek_shelter', () => {
     bb.set('lastAction', 'seek_shelter');
     ctx.bot?.chat?.(ai.personality.getResponse('weather', { weatherType: 'storm' }));
+    // Look around nervously
+    actions.lookAround();
     return Status.SUCCESS;
   });
 
@@ -373,6 +385,12 @@ function buildBehaviorTree(ai, game, ctx) {
       ai.schedule.applyWeather(w.type);
       ai.personality.mood.update(w.type === 'clear' ? { type: 'good_weather' } : { type: 'weather_storm' });
       ai.memory.addEpisode({ type: 'checked_weather', data: { weather: w.type } });
+      // Look up at the sky while checking weather
+      actions.lookAt(
+        actions.getPosition().x,
+        actions.getPosition().y + 20,
+        actions.getPosition().z
+      ).catch(() => {});
     }
     bb.set('lastAction', 'check_radio');
     return Status.SUCCESS;
@@ -387,29 +405,41 @@ function buildBehaviorTree(ai, game, ctx) {
     bb.set('fishingDecision', decision.go);
     bb.set('lastAction', 'decide_plan');
     ai.memory.addEpisode({ type: 'planned_day', data: { going: decision.go, reason: decision.reason } });
+    // Nod or shake head based on decision
+    if (decision.go) {
+      actions.nod().catch(() => {});
+    } else {
+      actions.shakeHead().catch(() => {});
+    }
     return Status.SUCCESS;
   });
 
   const prepareGear = new Action('prepare_gear', () => {
-    ctx.bot?.chat?.('Heading to LFS for bait and supplies.');
+    ctx.bot?.chat?.('Getting my gear ready.');
     bb.set('lastAction', 'prepare_gear');
+    // Equip fishing rod
+    actions.equipRod().catch(() => {});
     return Status.SUCCESS;
   });
 
-  const goFishing = new Action('go_fishing', () => {
+  const goFishing = new Action('go_fishing', async () => {
     if (!game.player.isFishing) {
       const state = game.getState();
       const biome = state?.player?.location?.biome || 'sheltered_sound';
       const method = _bestMethod(biome, game) || 'salmon_trolling';
       const result = game.startFishing(method);
       if (result.success) {
-        ctx.bot?.chat?.(pickRandom([
-          "Lines in the water. Now we wait.",
-          "Fishing. Don't jinx it by talking.",
-          "Here we go.",
-        ]));
         ai.memory.updateWorking({ task: 'fishing', location: biome });
         ai.memory.addEpisode({ type: 'started_fishing', data: { method, biome } });
+
+        // Actually walk to water, look, equip rod, cast
+        actions.startFishingSequence().then(() => {
+          ctx.bot?.chat?.(pickRandom([
+            "Lines in the water. Now we wait.",
+            "Fishing. Don't jinx it by talking.",
+            "Here we go.",
+          ]));
+        }).catch(() => {});
       }
     }
     bb.set('lastAction', 'go_fishing');
@@ -435,8 +465,18 @@ function buildBehaviorTree(ai, game, ctx) {
         ai.memory.updateWorking({
           fishCount: (ai.memory.working.fishCount || 0) + result.catch.length,
         });
+        // Celebrate: jump!
+        actions.jump().catch(() => {});
       } else {
         ai.memory.addEpisode({ type: 'no_catch', tags: ['fishing'] });
+        // Disappointed: shake head
+        actions.shakeHead().catch(() => {});
+      }
+    } else {
+      // While waiting: idle animations (look around, shift position)
+      if (!bb.get('_idleTimer') || Date.now() - bb.get('_idleTimer') > 3000) {
+        actions.lookAround();
+        bb.set('_idleTimer', Date.now());
       }
     }
     return Status.RUNNING;
@@ -450,6 +490,8 @@ function buildBehaviorTree(ai, game, ctx) {
       ctx.bot?.chat?.(`Sold the catch for $${earned}. Not bad.`);
       ai.personality.mood.update({ type: 'good_sale', value: Math.min(1, earned / 100) });
       ai.memory.addEpisode({ type: 'sold_fish', data: { gold: earned } });
+      // Nod approvingly
+      actions.nod().catch(() => {});
     }
     bb.set('lastAction', 'sell_catch');
     return Status.SUCCESS;
@@ -461,19 +503,30 @@ function buildBehaviorTree(ai, game, ctx) {
         "Heading to Ernie's. Chowder time.",
         "After a day on the water, Ernie's chowder hits different.",
       ]));
+      // Walk toward nearest player (simulate going to Ernie's)
+      const player = actions.findNearestPlayer(16);
+      if (player) {
+        actions.lookAtEntity(player).catch(() => {});
+      }
     }
     bb.set('lastAction', 'visit_ernies');
     return Status.SUCCESS;
   });
 
   const idleBehavior = new Action('idle', () => {
-    if (!bb.get('_idleTimer') || Date.now() - bb.get('_idleTimer') > 5000) {
-      const phrases = [
-        () => ctx.bot?.chat?.(ai.personality.getResponse('no_bites')),
-        () => ctx.bot?.chat?.(pickRandom(["*adjusts gear*", "*watches the horizon*", "*checks lines*"])),
-        () => {}, // silent
-      ];
-      pickRandom(phrases)();
+    if (!bb.get('_idleTimer') || Date.now() - bb.get('_idleTimer') > 3000) {
+      // Actually perform visible idle animations
+      actions.doIdleAction().catch(() => {});
+
+      // Occasionally chat
+      if (Math.random() < 0.15) {
+        const phrases = [
+          () => ctx.bot?.chat?.(ai.personality.getResponse('no_bites')),
+          () => ctx.bot?.chat?.(pickRandom(["*adjusts gear*", "*watches the horizon*", "*checks lines*"])),
+          () => {}, // silent
+        ];
+        pickRandom(phrases)();
+      }
       bb.set('_idleTimer', Date.now());
     }
     return Status.RUNNING;
@@ -481,6 +534,8 @@ function buildBehaviorTree(ai, game, ctx) {
 
   const sleep = new Action('sleep', () => {
     bb.set('lastAction', 'sleep');
+    // Look down (sleeping pose)
+    actions.crouch(5000).catch(() => {});
     return Status.SUCCESS;
   });
 
@@ -561,10 +616,57 @@ const fishingPlugin = {
     const skillLibrary = new SkillLibrary();
     const humanizer = new Humanizer();
 
-    ctx._ai = { memory, relationships, personality, schedule, skillLibrary, humanizer };
+    // ── Comparative Evaluation System ──────────────────────
+    const sessionRecorder = new SessionRecorder(dataDir);
+    const comparativeEvaluator = new ComparativeEvaluator(dataDir);
+    const scriptEvolver = new ScriptEvolver(dataDir);
+    const decisionEngine = new DecisionEngine(comparativeEvaluator, sessionRecorder);
 
-    // Build behavior tree
-    const behaviorTree = buildBehaviorTree(ctx._ai, game, ctx);
+    ctx._ai = { memory, relationships, personality, schedule, skillLibrary, humanizer,
+                 sessionRecorder, comparativeEvaluator, scriptEvolver, decisionEngine };
+
+    // Track current session for recording
+    ctx._liveSession = null;
+
+    // Create Actions instance for real mineflayer movements
+    let actions = null;
+    if (ctx.bot) {
+      actions = new Actions(ctx.bot, humanizer);
+      ctx._ai.actions = actions;
+    }
+
+    // ── Initialize Natural Language System ──────────────────
+    const llmClient = ctx.options?.llmClient || ctx.bot?.craftmind?._brain || null;
+
+    ctx._nlPlanner = new ActionPlanner(llmClient, {
+      getGameState: () => {
+        try {
+          const s = game.getState();
+          return {
+            summary: `${s.weather.emoji || ''} ${s.weather.name || 'clear'}, ${s.tide.emoji || ''} ${s.tide.phase}, fishing: ${s.player.isFishing ? 'yes' : 'no'}, gold: $${s.player.gold}`,
+          };
+        } catch { return { summary: 'Game state unavailable' }; }
+      },
+      getPersonality: () => ({
+        moodSnapshot: personality.mood?.snapshot?.(),
+      }),
+      getMemory: () => memory,
+      getRelationships: () => relationships,
+    });
+
+    ctx._nlExecutor = new ActionExecutor(ctx.bot, humanizer, game, actions);
+    ctx._nlExecutor.on({
+      onChat: (msg) => ctx.bot?.chat?.(msg.slice(0, 256)),
+      onError: (err, action) => {
+        if (process.env.DEBUG_AI) console.error('[NL] Action error:', err.message, action?.type);
+      },
+      onComplete: () => {
+        if (process.env.DEBUG_AI) console.log('[NL] Plan complete');
+      },
+    });
+
+    // Build behavior tree (with actions wired in)
+    const behaviorTree = buildBehaviorTree(ctx._ai, game, ctx, actions);
     ctx._ai.behaviorTree = behaviorTree;
 
     // ── Register commands ────────────────────────────────────
@@ -680,25 +782,50 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
 
       setTimeout(() => {
         const state = game.getState();
-        ctx.bot?.chat?.(`🎣 Sitka Sound — ${state.weather.emoji || ''} ${state.weather.name || 'clear'}, ${state.tide.emoji || ''} ${state.tide.phase || 'tide unknown'}${state.weather.seaState > 3 ? '. Rough out there.' : ''}. Type !help for commands, !cody to talk.`);
+        ctx.bot?.chat?.(`🎣 Sitka Sound — ${state.weather.emoji || ''} ${state.weather.name || 'clear'}, ${state.tide.emoji || ''} ${state.tide.phase || 'tide unknown'}${state.weather.seaState > 3 ? '. Rough out there.' : ''}. Type !help for commands, or just talk to me.`);
       }, 3000);
     });
 
-    // ── Chat event: personality-driven responses ─────────────
+    // ── Chat event: personality-driven responses + NL planning ─────────────
     ctx.events.on('CHAT', (username, message) => {
       if (username === (ctx.bot?.username || 'Cody')) return;
+
+      // Look at the player who's talking
+      if (actions && ctx.bot?.entity) {
+        const player = actions.findNearestPlayer(32);
+        if (player && player.username === username) {
+          actions.lookAtEntity(player).catch(() => {});
+        }
+      }
 
       const rel = relationships.get(username);
       relationships.interact(username, 'chat');
       memory.addEpisode({ type: 'player_chat', data: { player: username, message }, tags: ['social'] });
       memory.updateWorking({ interactions: (memory.working.interactions || 0) + 1 });
 
-      // Cody responds to fishing talk with personality, not LLM
       const lower = message.toLowerCase();
-      const fishingWords = ['fish', 'catch', 'salmon', 'halibut', 'crab', 'tide', 'weather', 'ocean', 'sea', 'rod', 'bait', 'lure', 'hook'];
-      if (fishingWords.some(w => lower.includes(w)) && !lower.startsWith('!')) {
-        // Let the behavior tree / LLM handle it via prompt
-        // But log the interaction for personality shaping
+
+      // !commands are handled by command registry — skip NL processing
+      if (lower.startsWith('!')) return;
+
+      // ── Natural Language Processing ───────────────────────
+      // Use ActionPlanner for non-command chat
+      if (ctx._nlPlanner) {
+        ctx._nlPlanner.plan(message, username).then(plan => {
+          if (!plan) return;
+
+          // Execute dialogue first (immediate chat response)
+          if (plan.dialogue) {
+            ctx.bot?.chat?.(plan.dialogue.slice(0, 256)); // MC chat limit
+          }
+
+          // Enqueue actions for execution
+          if (plan.actions && plan.actions.length > 0 && ctx._nlExecutor) {
+            ctx._nlExecutor.enqueue(plan.actions);
+          }
+        }).catch(err => {
+          if (process.env.DEBUG_AI) console.error('[NL] Plan error:', err.message);
+        });
       }
     });
 
@@ -706,16 +833,68 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
     ctx.events.on('END', () => {
       memory.save();
       relationships.save();
-      // Session analysis
-      if (memory.working.fishCount > 0) {
+
+      // ── Session Recording & Comparative Evaluation ─────
+      const working = memory.working || {};
+      const sessionData = {
+        skill: working.lastSkill || 'troll-salmon',
+        conditions: working.lastConditions || game.getConditions?.() || {},
+        results: {
+          catches: working.fishCaught || [],
+          totalWeight: (working.fishCaught || []).reduce((s, f) => s + (f.weight || 0), 0),
+          speciesCaught: [...new Set((working.fishCaught || []).map(f => f.species).filter(Boolean))],
+        },
+        outcome: working.fishCount > 3 ? 'success' : working.fishCount > 0 ? 'partial' : 'failure',
+      };
+
+      if (working.sessionStart) {
+        sessionData.startTime = new Date(working.sessionStart).toISOString();
+        sessionData.endTime = new Date().toISOString();
+        sessionData.duration = (Date.now() - working.sessionStart) / 1000;
+      }
+
+      // Record session
+      const sessionId = sessionRecorder.recordSession(sessionData);
+      memory.addEpisode({ type: 'session_recorded', data: { sessionId } });
+
+      // Run comparative evaluation
+      try {
+        const history = sessionRecorder.getAllSessions().filter(s => s.id !== sessionId);
+        if (history.length > 0) {
+          const evaluation = comparativeEvaluator.evaluate(sessionData, history);
+          comparativeEvaluator.saveComparison(sessionId, evaluation);
+
+          if (evaluation.insights.length > 0) {
+            comparativeEvaluator.saveInsights(evaluation.insights);
+            memory.addEpisode({ type: 'evaluation_insights', data: { insights: evaluation.insights, bestScript: evaluation.bestScript } });
+          }
+
+          // Trigger script evolution every 10 sessions
+          if (sessionRecorder.sessionCount % 10 === 0 && ctx._nlPlanner?._llmClient) {
+            const bestScript = evaluation.bestScript;
+            scriptEvolver.evolve(bestScript, evaluation, { chat: (p) => ctx._nlPlanner._llmClient.chat(p) })
+              .then(result => {
+                if (result.evolved) {
+                  memory.addEpisode({ type: 'script_evolved', data: result });
+                }
+              })
+              .catch(() => {});
+          }
+        }
+      } catch (err) {
+        if (process.env.DEBUG_AI) console.error('[Eval] Error:', err.message);
+      }
+
+      // Legacy session analysis (backward compat)
+      if (working.fishCount > 0) {
         const analysis = skillLibrary.analyzeSession({
-          skillName: 'troll-salmon',
-          duration: (Date.now() - memory.working.sessionStart) / 1000,
-          catch: memory.working.fishCount,
+          skillName: sessionData.skill,
+          duration: sessionData.duration || 0,
+          catch: working.fishCount,
           targetCatch: 10,
-          conditions: {},
+          conditions: sessionData.conditions,
         });
-        memory.addEpisode({ type: 'session_end', data: { ...analysis, working: memory.working } });
+        memory.addEpisode({ type: 'session_end', data: { ...analysis, working } });
         memory.extractRulesFromEpisodes();
       }
     });
@@ -738,8 +917,17 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
       this._ctx._ai.memory.save();
       this._ctx._ai.relationships.save();
     }
+    if (this._ctx?._nlExecutor) {
+      this._ctx._nlExecutor.stop();
+    }
     console.log('[FishingPlugin] Unloaded');
   },
 };
 
 export default fishingPlugin;
+
+// ── Prevent silent exits from unhandled promise rejections ───────────────────
+process.on('unhandledRejection', (reason) => {
+  console.error('[FishingPlugin] Unhandled rejection:', reason?.message || reason);
+  // Don't call process.exit — let the bot keep running
+});
