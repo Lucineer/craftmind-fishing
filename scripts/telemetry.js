@@ -14,19 +14,19 @@ const OUTFILE = '/tmp/sim-telemetry.jsonl';
 
 function countPattern(file, pattern) {
   try {
-    return parseInt(execSync(`grep -c "${pattern}" "${file}" 2>/dev/null`).toString().trim()) || 0;
+    return parseInt(execSync(`strings "${file}" 2>/dev/null | grep -c "${pattern}"`, { timeout: 10000 }).toString().trim()) || 0;
   } catch { return 0; }
 }
 
 function uniqueChatLines(file, botName) {
   try {
-    return parseInt(execSync(`grep "Not Secure.*<${botName}>" "${file}" 2>/dev/null | sed 's/.*] //' | sort -u | wc -l`).toString().trim()) || 0;
+    return parseInt(execSync(`strings "${file}" 2>/dev/null | grep "Not Secure.*<${botName}>" | sed 's/.*] //' | sort -u | wc -l`).toString().trim()) || 0;
   } catch { return 0; }
 }
 
 function topChatLines(file, botName, n = 5) {
   try {
-    return execSync(`grep "Not Secure.*<${botName}>" "${file}" 2>/dev/null | sed 's/.*] //' | sort | uniq -c | sort -rn | head -${n}`).toString().trim();
+    return execSync(`strings "${file}" 2>/dev/null | grep "Not Secure.*<${botName}>" | sed 's/.*] //' | sort | uniq -c | sort -rn | head -${n}`).toString().trim();
   } catch { return ''; }
 }
 
