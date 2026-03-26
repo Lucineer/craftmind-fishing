@@ -469,26 +469,39 @@ export class ScriptRunner {
           }
           const waterBlock = this.bot.findBlock({
             matching: waterId,
-            maxDistance: 6,
+            maxDistance: 12,
           });
           if (!waterBlock) {
             console.warn(`[ScriptRunner] No water within 6 blocks (pos: ${this.bot.entity.position})`);
-            // No water nearby — walk toward dock at (0, 65, 0)
+            // No water nearby — use pathfinder to find water or return to dock
             try {
-              const pos = this.bot.entity.position;
-              const dx = 0 - pos.x;
-              const dz = 0 - pos.z;
-              const dist = Math.sqrt(dx * dx + dz * dz);
-              if (dist > 2) {
-                const target = pos.offset(dx / dist * 8, 0, dz / dist * 8);
-                this.bot.lookAt(target);
-                this.bot.setControlState('forward', true);
-                this.bot.setControlState('sprint', dist > 10);
-                await this._wait(2000);
-                this.bot.clearControlStates();
+              // First try: find any water within 32 blocks
+              let farWater = this.bot.findBlock({
+                matching: waterId,
+                maxDistance: 32,
+                useExtraInfo: false,
+              });
+              let goalPos;
+              if (farWater) {
+                goalPos = farWater.position;
+              } else {
+                // Fallback: walk toward origin dock area
+                goalPos = this.bot.entity.position.offset(
+                  -this.bot.entity.position.x, 0, -this.bot.entity.position.z
+                );
+                goalPos = goalPos.normalize().scale(8);
               }
+              const { goals } = require('mineflayer-pathfinder');
+              const { Movements } = require('mineflayer-pathfinder');
+              const defaultMove = new Movements(this.bot);
+              defaultMove.allowSprinting = true;
+              this.bot.pathfinder.setMovements(defaultMove);
+              this.bot.pathfinder.setGoal(new goals.GoalNear(goalPos.x, goalPos.y, goalPos.z, 3));
+              console.log(`[ScriptRunner] Pathing to water at (${goalPos.x.toFixed(1)}, ${goalPos.y.toFixed(1)}, ${goalPos.z.toFixed(1)})`);
+              await this._wait(8000); // Give pathfinder time to navigate
+              this.bot.pathfinder.setGoal(null); // Clear goal
             } catch (e) {
-              console.error('[ScriptRunner] Walk-to-dock error:', e.message);
+              console.error('[ScriptRunner] Find-water path error:', e.message);
             }
             this._isFishing = false;
             break;
@@ -501,7 +514,7 @@ export class ScriptRunner {
           console.log('[ScriptRunner] Casting line...');
           const fishPromise = this.bot.fish();
           const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Fishing timeout (45s)')), 45000)
+            setTimeout(() => reject(new Error('Fishing timeout (90s)')), 90000)
           );
           await Promise.race([fishPromise, timeoutPromise]);
           console.log('[ScriptRunner] Line reeled in');
