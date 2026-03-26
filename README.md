@@ -44,10 +44,28 @@ Everything runs as a [CraftMind Core](https://github.com/CedarBeach2019/craftmin
 - **Quest system** — tutorial quest with Old Thomas, achievement tracks, skill trees
 - **Crew roles** — Deckhand, Engineer, Navigator, Cook — each with unique abilities
 
-### 🎮 Playable
-- **Full playtest mode** — `node scripts/playtest.js` spawns a bot in Sitka Sound
-- **9 in-game commands** via CraftMind plugin system
-- **Biology lessons** — fish identification cards, habitat education, bycatch awareness
+### 🎭 Bot Personalities & Script System
+
+Fishing bots are driven by **behavior scripts** — versioned personality modules that control how each bot fishes, talks, and reacts.
+
+- **10 unique personalities** — Lazy, Social, Aggressive, Stoic, Nervous, Veteran, Kid, Morning, Contemplative, Troller (plus v2 evolved variants)
+- **Script engine** — Hot-swappable at runtime via `!scripts` and `!script <name>` commands
+- **Script registry** — Central registry for managing and loading personality scripts
+- **Script evolver** — ML-driven iteration that generates improved v2 scripts from v1 performance
+- **Telemetry bridge** — Collects per-script metrics for comparison and optimization
+
+Switch a bot's personality mid-game:
+```
+!scripts          # List available scripts
+!script v1-veteran  # Switch to the veteran personality
+```
+
+### 🧪 Experiment Lab
+
+Compare scripts head-to-head to find the best fishing strategy:
+- **A/B testing** — Run two scripts simultaneously and compare catch rates
+- **Metrics collection** — Telemetry bridge captures performance data per session
+- **Comparative tooling** — Built-in evaluation for script improvements
 
 ## Quick Start
 
@@ -125,20 +143,19 @@ node scripts/playtest.js
                    └─────────────────┘
 ```
 
-## Ecosystem
-
-CraftMind Fishing is part of the CraftMind ecosystem:
+## CraftMind Ecosystem
 
 | Repo | Description |
 |------|-------------|
 | [craftmind](https://github.com/CedarBeach2019/craftmind) | 🤖 Core bot framework |
 | [**craftmind-fishing**](https://github.com/CedarBeach2019/craftmind-fishing) | 🎣 Sitka Sound fishing RPG |
 | [craftmind-studio](https://github.com/CedarBeach2019/craftmind-studio) | 🎬 AI filmmaking engine |
-| [craftmind-ranch](https://github.com/CedarBeach2019/craftmind-ranch) | 🐄 Animal husbandry simulation |
-| [craftmind-herding](https://github.com/CedarBeach2019/craftmind-herding) | 🐑 Livestock herding AI |
-| [craftmind-circuits](https://github.com/CedarBeach2019/craftmind-circuits) | ⚡ Redstone circuit design |
 | [craftmind-courses](https://github.com/CedarBeach2019/craftmind-courses) | 📚 In-game learning system |
 | [craftmind-researcher](https://github.com/CedarBeach2019/craftmind-researcher) | 🔬 AI research assistant |
+| [craftmind-herding](https://github.com/CedarBeach2019/craftmind-herding) | 🐑 Livestock herding AI |
+| [craftmind-circuits](https://github.com/CedarBeach2019/craftmind-circuits) | ⚡ Redstone circuit design |
+| [craftmind-ranch](https://github.com/CedarBeach2019/craftmind-ranch) | 🌾 Genetic animal breeding |
+| [craftmind-discgolf](https://github.com/CedarBeach2019/craftmind-discgolf) | 🥏 Disc golf simulation |
 
 ## Assets
 

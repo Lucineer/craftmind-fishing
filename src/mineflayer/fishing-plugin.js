@@ -1041,8 +1041,10 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
         timestamp: new Date().toISOString(),
       };
       try {
-        const fs = await import('node:fs');
-        fs.writeFileSync('/tmp/sim-stats.json', JSON.stringify(stats, null, 2));
+        (async () => {
+          const fs = await import('node:fs');
+          fs.writeFileSync('/tmp/sim-stats.json', JSON.stringify(stats, null, 2));
+        })();
       } catch {}
     }, 60000);
     this._telemetryLoop = telemetryLoop;
