@@ -248,7 +248,7 @@ export class ScriptRunner {
 
     // If we have registered scripts, pick from them (weighted by mood/context)
     if (this._scripts.size > 0) {
-      const hasPlayers = this.context?.playersSeen?.size > 0;
+      const hasPlayers = this.context?.playersSeen instanceof Set ? this.context.playersSeen.size > 0 : false;
       const energy = this.mood.energy;
       
       // Build weighted choices from registered scripts
@@ -336,8 +336,14 @@ export class ScriptRunner {
           }
           await this.bot.equip(rod, 'hand');
           // Find water — MUST be within 6 blocks
+          const waterId = this.bot.registry.blocksByName.water?.id;
+          if (!waterId) {
+            console.warn('[ScriptRunner] Water block ID not found in registry!');
+            this._isFishing = false;
+            break;
+          }
           const waterBlock = this.bot.findBlock({
-            matching: this.bot.registry.blocksByName.water?.id,
+            matching: waterId,
             maxDistance: 6,
           });
           if (!waterBlock) {
@@ -366,7 +372,9 @@ export class ScriptRunner {
           await this._wait(800);
           if (!this._running) throw new Error('INTERRUPTED');
           // Cast
+          console.log('[ScriptRunner] Casting line...');
           await this.bot.fish();
+          console.log('[ScriptRunner] Line reeled in');
         } catch (e) {
           if (e.message !== 'INTERRUPTED') {
             console.error('[ScriptRunner] Fish error:', e.message);
