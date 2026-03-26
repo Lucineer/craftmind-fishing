@@ -1115,19 +1115,26 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
         ctx.bot?.chat?.(`🎣 Sitka Sound — ${state.weather.emoji || ''} ${state.weather.name || 'clear'}, ${state.tide.emoji || ''} ${state.tide.phase || 'tide unknown'}${state.weather.seaState > 3 ? '. Rough out there.' : ''}. Type !help for commands, or just talk to me.`);
       }, 3000);
 
-      // Equip from starting chest on spawn
-      if (ctx._equipper) {
-        ctx._equipper.lootNearestChest(5).then(looted => {
-          if (looted) {
-            console.log('[FishingPlugin] Looted starting chest');
-            // Small delay for inventory to sync
-            setTimeout(() => {
-              ctx._equipper.equipAll();
-              console.log('[FishingPlugin] Equipped armor and weapon');
-            }, 1000);
+      // Give fishing supplies after spawning (more reliable than pre-spawn RCON)
+      setTimeout(async () => {
+        try {
+          const { Rcon } = await import('/home/lucineer/projects/craftmind/node_modules/rcon-client');
+          const rconPort = parseInt(process.env.SERVER_PORT || '0') + 10000;
+          if (rconPort < 30000) {
+            const rcon = await Rcon.connect({ host: 'localhost', port: rconPort, password: 'fishing42' });
+            await rcon.send(`give ${ctx.bot?.username || '@p'} fishing_rod 3`);
+            await rcon.send(`give ${ctx.bot?.username || '@p'} bread 32`);
+            console.log(`[FishingPlugin] RCON supplies given (${ctx.bot?.username})`);
+            await rcon.end();
           }
-        }).catch(() => {});
-      }
+        } catch (e) {
+          console.warn('[FishingPlugin] RCON supply failed:', e.message);
+        }
+        // Equip after getting supplies
+        if (ctx._equipper) {
+          setTimeout(() => ctx._equipper.equipAll(), 2000);
+        }
+      }, 5000);
     });
 
     // ── Chat event: personality-driven responses + NL planning ─────────────
