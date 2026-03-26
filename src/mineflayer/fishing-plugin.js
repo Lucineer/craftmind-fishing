@@ -30,6 +30,8 @@ import { SITKA_LOCATIONS } from './sitka-world.js';
 import { ActionPlanner } from '../ai/action-planner.js';
 import { ActionExecutor } from '../ai/action-executor.js';
 import { ConversationMemory } from '../ai/conversation-memory.js';
+import { Survival } from './survival.js';
+import { Equipper } from './equipper.js';
 
 // ── Fishing commands ──────────────────────────────────────────────────────────
 
@@ -376,6 +378,13 @@ function buildBehaviorTree(ai, game, ctx, actions) {
   const bb = new Blackboard();
 
   // ── Condition checks ──────────────────────────────────────
+  const hostileNearby = new Condition('hostile_nearby', () => {
+    return ctx._survival?.getNearestHostile(16) != null;
+  });
+  const creeperNearby = new Condition('creeper_nearby', () => {
+    const hostile = ctx._survival?.getNearestHostile(6);
+    return hostile?.name?.includes('creeper') || false;
+  });
   const healthLow = new Condition('health_low', () =>
     (ctx.bot?.health || 20) < 6
   );
@@ -414,6 +423,24 @@ function buildBehaviorTree(ai, game, ctx, actions) {
   });
 
   // ── Actions (now with real mineflayer movements!) ─────────
+  const combat = new Action('combat', () => {
+    bb.set('lastAction', 'combat');
+    const target = ctx._survival?.getNearestHostile(16);
+    if (target) {
+      ctx._survival._attack(target);
+    }
+    return Status.RUNNING;
+  });
+
+  const fleeThreat = new Action('flee_threat', () => {
+    bb.set('lastAction', 'flee');
+    const target = ctx._survival?.getNearestHostile(16);
+    if (target) {
+      ctx._survival._fleeFrom(target);
+    }
+    return Status.SUCCESS;
+  });
+
   const flee = new Action('flee', () => {
     bb.set('lastAction', 'flee');
     ctx.bot?.chat?.('Getting out of here!');
@@ -594,7 +621,23 @@ function buildBehaviorTree(ai, game, ctx, actions) {
 
   // ── Build tree ─────────────────────────────────────────────
   const root = new Selector('root', [
-    // Urgency
+    // SURVIVAL — highest priority (fight or flee)
+    new Sequence('handle_creeper', [
+      creeperNearby,
+      fleeThreat,
+    ]),
+    new Sequence('handle_combat', [
+      hostileNearby,
+      new Condition('can_fight', () => !healthLow.check(bb)),
+      combat,
+    ]),
+    new Sequence('handle_low_health_flee', [
+      healthLow,
+      hostileNearby,
+      fleeThreat,
+    ]),
+
+    // Urgency (weather)
     new Sequence('handle_danger', [
       isStorming,
       new Selector('danger_response', [flee, seekShelter]),
@@ -701,6 +744,15 @@ const fishingPlugin = {
     if (ctx.bot) {
       actions = new Actions(ctx.bot, humanizer);
       ctx._ai.actions = actions;
+    }
+
+    // ── Initialize Survival & Equipper ─────────────────────
+    if (ctx.bot) {
+      const survival = new Survival(ctx.bot);
+      const equipper = new Equipper(ctx.bot);
+      ctx._survival = survival;
+      ctx._equipper = equipper;
+      console.log('[FishingPlugin] Survival + Equipper modules loaded');
     }
 
     // ── Initialize Natural Language System ──────────────────
@@ -852,6 +904,20 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
         const state = game.getState();
         ctx.bot?.chat?.(`🎣 Sitka Sound — ${state.weather.emoji || ''} ${state.weather.name || 'clear'}, ${state.tide.emoji || ''} ${state.tide.phase || 'tide unknown'}${state.weather.seaState > 3 ? '. Rough out there.' : ''}. Type !help for commands, or just talk to me.`);
       }, 3000);
+
+      // Equip from starting chest on spawn
+      if (ctx._equipper) {
+        ctx._equipper.lootNearestChest(5).then(looted => {
+          if (looted) {
+            console.log('[FishingPlugin] Looted starting chest');
+            // Small delay for inventory to sync
+            setTimeout(() => {
+              ctx._equipper.equipAll();
+              console.log('[FishingPlugin] Equipped armor and weapon');
+            }, 1000);
+          }
+        }).catch(() => {});
+      }
     });
 
     // ── Chat event: personality-driven responses + NL planning ─────────────
@@ -981,6 +1047,7 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
     clearInterval(this._behaviorLoop);
     clearInterval(this._gameLoop);
     clearInterval(this._saveLoop);
+    if (this._ctx?._survival) this._ctx._survival.stop();
     if (this._ctx?._ai) {
       this._ctx._ai.memory.save();
       this._ctx._ai.relationships.save();

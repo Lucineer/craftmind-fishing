@@ -89,9 +89,17 @@ async function main() {
   // 11. Starting chest
   await run('Place starting chest', () => sb.placeChest(0, 65, 0, [
     { id: 'fishing_rod', count: 1 },
-    { id: 'bread', count: 16 },
+    { id: 'bread', count: 32 },
     { id: 'oak_boat', count: 1 },
     { id: 'lantern', count: 2 },
+    { id: 'iron_sword', count: 1 },
+    { id: 'iron_helmet', count: 1 },
+    { id: 'iron_chestplate', count: 1 },
+    { id: 'iron_leggings', count: 1 },
+    { id: 'iron_boots', count: 1 },
+    { id: 'shield', count: 1 },
+    { id: 'torch', count: 64 },
+    { id: 'cobblestone', count: 64 },
   ]));
 
   // 12. World settings
