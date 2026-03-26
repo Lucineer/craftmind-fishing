@@ -329,12 +329,114 @@ export class ScriptRunner {
         if (this._isFishing) break; // Prevent concurrent bot.fish() calls
         try {
           this._isFishing = true;
-          // Equip fishing rod
-          const rod = this.bot.inventory.items().find(i => i.name.includes('fishing_rod'));
+          // Equip fishing rod (gather + craft if missing)
+          let rod = this.bot.inventory.items().find(i => i.name.includes('fishing_rod'));
           if (!rod) {
-            console.warn('[ScriptRunner] No fishing rod in inventory!');
-            this._isFishing = false;
-            break; // No rod, skip fishing
+            // Throttle: only try every 30s to avoid log spam
+            const now = Date.now();
+            if (!this._lastRodAttempt || now - this._lastRodAttempt > 30000) {
+              this._lastRodAttempt = now;
+              console.log('[ScriptRunner] No fishing rod — gathering materials...');
+              try {
+                // 1. Gather wood if needed
+                const logTypes = ['oak_log', 'birch_log', 'spruce_log', 'jungle_log', 'acacia_log', 'dark_oak_log', 'mangrove_log'];
+                const hasLogs = this.bot.inventory.items().some(i => logTypes.includes(i.name));
+                const hasPlanks = this.bot.inventory.items().some(i => i.name.includes('planks'));
+                if (!hasLogs && !hasPlanks) {
+                  // Find and chop a tree
+                  const treeBlock = this.bot.findBlock({
+                    matching: logTypes.map(l => this.bot.registry.blocksByName[l]?.id).filter(Boolean),
+                    maxDistance: 20,
+                  });
+                  if (treeBlock) {
+                    await this.bot.pathfinder.setGoal(new (this.bot.pathfinder.goals.GoalBlock)(treeBlock.x, treeBlock.y, treeBlock.z));
+                    await this._wait(5000);
+                    // Break the block
+                    const targetBlock = this.bot.blockAt(treeBlock.position);
+                    if (targetBlock) {
+                      await this.bot.dig(targetBlock);
+                      console.log('[ScriptRunner] Chopped a tree');
+                      // Collect drops
+                      this.bot.setControlState('forward', true);
+                      await this._wait(1000);
+                      this.bot.setControlState('forward', false);
+                    }
+                  } else {
+                    console.warn('[ScriptRunner] No trees nearby! Cannot get wood.');
+                  }
+                }
+                // 2. Craft planks from logs
+                const logItem = this.bot.inventory.items().find(i => logTypes.includes(i.name));
+                if (logItem && !hasPlanks) {
+                  const plankRecipe = this.bot.recipesFor(logItem.name, null, 1, null);
+                  if (plankRecipe?.length) {
+                    await this.bot.craft(plankRecipe[0], 1);
+                    console.log('[ScriptRunner] Crafted planks');
+                  }
+                }
+                // 3. Craft sticks from planks
+                const plankItem = this.bot.inventory.items().find(i => i.name.includes('planks'));
+                if (plankItem) {
+                  const stickRecipe = this.bot.recipesFor('stick', null, 1, null);
+                  if (stickRecipe?.length) {
+                    await this.bot.craft(stickRecipe[0], 4);
+                    console.log('[ScriptRunner] Crafted sticks');
+                  }
+                }
+                // 4. Try craft fishing rod (needs 3 sticks + 2 strings + 1 plank — but skip if no string)
+                // Fishing rod is shaped, needs crafting table. Find one or skip.
+                const stringCount = this.bot.inventory.items().filter(i => i.name === 'string').reduce((s, i) => s + i.count, 0);
+                if (stringCount >= 2) {
+                  const craftingTableId = this.bot.registry.blocksByName.crafting_table?.id;
+                  let tableBlock = null;
+                  if (craftingTableId) {
+                    tableBlock = this.bot.findBlock({ matching: craftingTableId, maxDistance: 6 });
+                  }
+                  if (tableBlock) {
+                    const rodRecipe = this.bot.recipesFor('fishing_rod', null, 1, tableBlock);
+                    if (rodRecipe?.length) {
+                      await this.bot.craft(rodRecipe[0], 1);
+                      rod = this.bot.inventory.items().find(i => i.name.includes('fishing_rod'));
+                      console.log('[ScriptRunner] Crafted fishing rod! 🎣');
+                    }
+                  } else {
+                    // No crafting table nearby — craft one from planks
+                    if (plankItem) {
+                      const tableRecipe = this.bot.recipesFor('crafting_table', null, 1, null);
+                      if (tableRecipe?.length) {
+                        await this.bot.craft(tableRecipe[0], 1);
+                        console.log('[ScriptRunner] Crafted crafting table');
+                        // Place it
+                        const tableItem = this.bot.inventory.items().find(i => i.name === 'crafting_table');
+                        if (tableItem) {
+                          await this.bot.equip(tableItem, 'hand');
+                          const placePos = this.bot.entity.position.offset(0, 0, 2);
+                          const placeBlock = this.bot.blockAt(placePos);
+                          if (placeBlock) {
+                            await this.bot.placeBlock(placeBlock, this.bot.entity.position);
+                            console.log('[ScriptRunner] Placed crafting table');
+                            const rodRecipe = this.bot.recipesFor('fishing_rod', null, 1, this.bot.blockAt(placePos));
+                            if (rodRecipe?.length) {
+                              await this.bot.craft(rodRecipe[0], 1);
+                              rod = this.bot.inventory.items().find(i => i.name.includes('fishing_rod'));
+                              console.log('[ScriptRunner] Crafted fishing rod! 🎣');
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                } else {
+                  console.log(`[ScriptRunner] Need 2 string for fishing rod (have ${stringCount}) — killing spiders needed`);
+                }
+              } catch (gatherErr) {
+                console.warn(`[ScriptRunner] Gather/craft failed: ${gatherErr.message}`);
+              }
+            }
+            if (!rod) {
+              this._isFishing = false;
+              break;
+            }
           }
           await this.bot.equip(rod, 'hand');
           // Find water — MUST be within 6 blocks
@@ -386,9 +488,15 @@ export class ScriptRunner {
           if (e.message !== 'INTERRUPTED') {
             console.error('[ScriptRunner] Fish error:', e.message);
           }
+          // Back off after cancellation to avoid rapid re-cast loop
+          if (e.message?.includes('cancelled')) {
+            await this._wait(2000 + Math.random() * 3000);
+          }
         } finally {
           this._isFishing = false;
         }
+        // Brief pause between fishing attempts to let server settle
+        await this._wait(500);
         break;
 
       case 'branch': {
