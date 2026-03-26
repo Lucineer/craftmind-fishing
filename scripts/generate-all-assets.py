@@ -14,7 +14,10 @@ import time
 import urllib.request
 import random
 
-API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyBKQBB_YP7kg6AMWv1KUBjmqLxQcRYSFcM")
+API_KEY = os.environ.get("GEMINI_API_KEY")
+if not API_KEY:
+    print("ERROR: Set GEMINI_API_KEY env var")
+    sys.exit(1)
 
 # Model tiers
 MODELS = {

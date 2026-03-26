@@ -10,7 +10,10 @@ import base64
 import time
 import urllib.request
 
-API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyBKQBB_YP7kg6AMWv1KUBjmqLxQcRYSFcM")
+API_KEY = os.environ.get("GEMINI_API_KEY")
+if not API_KEY:
+    print("ERROR: Set GEMINI_API_KEY env var")
+    sys.exit(1)
 MODEL = "gemini-3-pro-image-preview"
 BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "generated")
 IMAGEN_MODEL = "imagen-4.0-fast-generate-001"

@@ -2,7 +2,10 @@
 """Gemini-only batch generator with aggressive rate limiting for free tier."""
 import json,sys,os,base64,time,urllib.request
 
-API_KEY = "AIzaSyBKQBB_YP7kg6AMWv1KUBjmqLxQcRYSFcM"
+API_KEY = os.environ.get("GEMINI_API_KEY")
+if not API_KEY:
+    print("ERROR: Set GEMINI_API_KEY env var")
+    sys.exit(1)
 DELAY = 15  # seconds between requests
 BACKOFF = 120
 
