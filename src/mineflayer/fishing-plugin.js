@@ -787,7 +787,7 @@ const fishingPlugin = {
     ctx.events.on('SPAWN', () => {
       setTimeout(async () => {
         try {
-          const { Rcon } = await import('/home/lucineer/projects/craftmind/node_modules/rcon-client');
+          const { Rcon } = await import('/home/lucineer/projects/craftmind/node_modules/rcon-client/lib/index.js');
           if (rconPort >= 30000) return;
           const rcon = await Rcon.connect({ host: 'localhost', port: rconPort, password: 'fishing42' });
           await rcon.send(`give ${ctx.bot?.username || '@p'} fishing_rod 3`);
