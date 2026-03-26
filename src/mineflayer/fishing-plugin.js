@@ -785,9 +785,10 @@ const fishingPlugin = {
     // fires SPAWN. Any handler registered after the first await will miss it.
     const rconPort = parseInt(process.env.SERVER_PORT || '0') + 10000;
     ctx.events.on('SPAWN', () => {
+      console.log(`[FishingPlugin] SPAWN handler fired for ${ctx.bot?.username} (RCON port ${rconPort})`);
       setTimeout(async () => {
         try {
-          const { Rcon } = await import('/home/lucineer/projects/craftmind/node_modules/rcon-client/lib/index.js');
+          const { Rcon } = require('/home/lucineer/projects/craftmind/node_modules/rcon-client');
           if (rconPort >= 30000) return;
           const rcon = await Rcon.connect({ host: 'localhost', port: rconPort, password: 'fishing42' });
           await rcon.send(`give ${ctx.bot?.username || '@p'} fishing_rod 3`);
