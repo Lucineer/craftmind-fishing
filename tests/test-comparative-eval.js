@@ -504,12 +504,15 @@ async function testTargetSpecies() {
     skill: 'troll-salmon', outcome: 'success',
     results: { catches: [{ species: 'king', weight: 25 }], totalWeight: 25, speciesCaught: ['king'] },
   }));
-  recorder.recordSession(makeSession({
-    skill: 'bottom-fish',
-    conditions: { weather: 'overcast', tide: 'slack', depth: 120, location: 'deep', bait: 'herring', temperature: 50 },
-    outcome: 'success',
-    results: { catches: [{ species: 'halibut', weight: 80 }, { species: 'cod', weight: 15 }], totalWeight: 95, speciesCaught: ['halibut', 'cod'] },
-  }));
+  // Multiple successful sessions for bottom-fish with halibut to build stronger signal
+  for (let i = 0; i < 3; i++) {
+    recorder.recordSession(makeSession({
+      skill: 'bottom-fish',
+      conditions: { weather: 'overcast', tide: 'slack', depth: 120, location: 'deep', bait: 'herring', temperature: 50 },
+      outcome: 'success',
+      results: { catches: [{ species: 'halibut', weight: 80 }, { species: 'cod', weight: 15 }], totalWeight: 95, speciesCaught: ['halibut', 'cod'] },
+    }));
+  }
 
   const decision = engine.decide(
     {},
@@ -557,9 +560,8 @@ async function main() {
   await testStubbornnessBias();
   await testTargetSpecies();
 
-  teardown();
-
   console.log(`\n═══ Results: ${passed}/${total} passed, ${failed} failed ═══`);
+  rmSync(TEST_DIR, { recursive: true, force: true });
   process.exit(failed > 0 ? 1 : 0);
 }
 

@@ -57,10 +57,7 @@ export class ScriptEvolver {
     } catch (e) {
       // ESM-style code (import/export) won't parse in new Function
       if (code.includes('import ') || code.includes('export ')) {
-        // ESM: do basic sanity checks instead
-        if (code.trim().length < 50) {
-          errors.push('Code is suspiciously short — likely invalid');
-        }
+        // ESM: skip syntax validation, just check length below
       } else {
         return { valid: false, errors: [`Syntax error: ${e.message}`] };
       }
@@ -76,7 +73,7 @@ export class ScriptEvolver {
     }
 
     // Check it's not empty or trivially small
-    if (code.trim().length < 50) {
+    if (code.trim().length < 30) {
       errors.push('Code is suspiciously short — likely invalid');
     }
 

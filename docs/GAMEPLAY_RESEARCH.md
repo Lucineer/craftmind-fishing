@@ -377,4 +377,181 @@ Total session: 10-30 minutes. Repeatable. Each phase should be satisfying on its
 - Questions, constantly: "Why do you use two hooks instead of one?" "Can I try?" "What's the biggest fish you ever caught?"
 - Gets excited about everything: "OH MY GOD WAS THAT A SEAL?!"
 - Terrible at lying: covers mouth with hand, avoids eye contact
-- Recites "facts" she learned from NPC
+- Recites "facts" she learned from NPCs that are slightly wrong: "Cody says halibut can pull your boat under!"
+- Growing confidence: starts shy, gets bolder as she learns
+
+**Secret:** Her dad was a fisherman who died at sea. She's trying to learn to feel close to him.
+
+**Quirks:**
+- Has a beat-up tackle box that's way too big for her.
+- Keeps a journal of every fish she's seen (not just caught).
+- Draws pictures of the fish. They're bad but enthusiastic.
+- Follows Cody around until he gives in and teaches her something.
+- Names every fish she catches.
+
+---
+
+### Sergei — The Outsider
+
+**Role:** Visiting sport fisherman. Brings outside perspective. Unfamiliar with local ways.
+
+**Personality:** Russian or Eastern European. Big game hunter energy applied to fishing. Means well but is clueless about local etiquette. Loud. Generous. Finds everything amazing.
+
+**Voice markers:**
+- Everything is "in Russia, we..." followed by something absurdly hardcore.
+- Enthusiastic about the wrong things: "This fog! Is beautiful! In Novosibirsk, fog means the bears are sleeping!"
+- Asks about sizes first: "How BIG is the salmon here? I want the BIG one."
+- Has no concept of conservation: needs to be corrected (gently or not)
+
+**Secret:** He's here because his wife told him to "go find himself" for a month. He's genuinely having the time of his life and will cry when he leaves.
+
+**Quirks:**
+- Brought entirely wrong gear for the conditions. Huge deep-sea rod for a sheltered sound.
+- Cooks everything he catches. Badly. Offers it to everyone.
+- Takes photos of EVERYTHING. Seagulls. Rocks. His own boots.
+- Knows impressive (but irrelevant) knots and insists on showing people.
+- Gets genuinely moved by beautiful scenery and goes quiet. Then ruins it with a loud comment.
+
+---
+
+## 7. Memorable Moments Design — 10 "Holy Shit" Moments
+
+These are moments the game's systems should be capable of generating. Not scripted cutscenes — emergent events from agent behavior, weather, and player action.
+
+### 1. The Storm Rescue
+**Setup:** Major storm rolls in. Player is far from harbor. Boat engine fails (random event). Cody (or another NPC) appears through the fog, having come to find you despite the danger.
+**Why it hits:** Shared adversity. An NPC chose to risk themselves for you. Trust earned in the most visceral way.
+**System triggers:** Weather event + player distance from harbor + engine durability + NPC relationship check.
+
+### 2. The Hundred-Pound Halibut
+**Setup:** Player hooks something enormous. The fight takes 10+ minutes. Line is groaning. Cody (if present) goes uncharacteristically quiet and still. The whole dock watches when you return.
+**Why it hits:** The rarity + the tension + the communal reaction. Everyone remembers the day someone landed the big one.
+**System triggers:** Rare fish spawn + gear quality check + fight duration mechanic + NPC awareness radius.
+
+### 3. Thomas Takes You to the Old Grounds
+**Setup:** After months of building trust, Old Thomas leads you to a hidden location. The fishing is incredible. He tells you the Tlingit name for the place. He asks you not to tell the others.
+**Why it hits:** Exclusive knowledge. Cultural depth. You've been chosen.
+**System triggers:** Trust threshold (Thomas, 80+) + correct time/location + random opportunity.
+
+### 4. The Derby Bet
+**Setup:** Sitka Salmon Derby. Cody bets Pete his lucky hat. Pete bets his boat's nameplate. The player becomes the tiebreaker. Your catch determines who wins. The loser's reaction depends on your relationship with them.
+**Why it hits:** Player agency in NPC drama. Real stakes. Someone wins, someone loses, and it's your fault.
+**System triggers:** Annual/monthly tournament event + NPC rivalry active + player participation.
+
+### 5. Maya Catches Her First Fish
+**Setup:** Maya's been trying for days. She's frustrated. You and Cody are fishing nearby. Suddenly her rod bends. She screams. It's a decent fish — not big, but HERS. Cody pretends not to care but you catch him smiling.
+**Why it hits:** Witnessing someone else's joy. The gruff mentor softening. Pure heart.
+**System triggers:** Maya's fishing attempts counter + random success event + NPC proximity.
+
+### 6. The Whale
+**Setup:** While fishing quietly, a humpback whale surfaces 30 yards from your boat. Time slows. All NPCs in range stop what they're doing. Thomas says something in Lingít. Nobody speaks for a full minute.
+**Why it hits:** Awe. Nature. Shared experience that transcends the game loop. The whale doesn't DO anything — its presence is enough.
+**System triggers:** Random rare event + time of day + weather conditions + player stillness (not casting/reeing).
+
+### 7. Pete's Boat Breaks Down
+**Setup:** Pete's over-polished engine gives out. He's drifting. He'd rather die than ask for help. The player can help, laugh, or ignore. Your choice affects both Pete and Cody's opinions.
+**Why it hits:** Moral choice with immediate social consequences. No "right" answer — just consequences.
+**System triggers:** Random failure event + Pete's location + player proximity + relationship checks.
+
+### 8. The Forbidden Spot
+**Setup:** An NPC mentions a spot that's technically off-limits (marine reserve, private property, dangerous waters). Do you go? If caught, you face consequences with multiple NPCs. If not, you wonder what was there.
+**Why it hits:** Temptation and consequence. The forbidden is always more interesting.
+**System triggers:** Rumor dialogue from NPC + player choice to investigate + consequence system.
+
+### 9. Sergei's Last Day
+**Setup:** Sergei's month is up. He's leaving. He throws a farewell dinner (terrible food) and gives everyone gifts. His gift to the player is something genuinely useful — a piece of gear or knowledge from Russia. He cries. He tries to hide it.
+**Why it hits:** Loss. A character you've grown to like is gone. Makes you appreciate the NPCs who stay.
+**System triggers:** Timed event (30 days after Sergei arrival) + relationship check for gift quality.
+
+### 10. The Legend
+**Setup:** After a year of in-game time, NPCs start telling stories about YOUR fishing. "Remember when [player] landed that king during the blow?" Your actions have become part of Sitka Sound's lore. New NPCs reference your reputation before meeting you.
+**Why it hits:** Legacy. The world acknowledges what you've done. You've become part of the story.
+**System triggers:** Cumulative player actions over time + NPC dialogue system updating with player history.
+
+---
+
+## 8. Progression System — How the Player's Relationship With the World Evolves
+
+### Layer 1: The Newcomer (Days 1-7)
+
+**Player state:** Doesn't know anyone. Doesn't know where to fish. Catches nothing.
+**World state:** NPCs are polite but distant. Weather seems random. Everything is mysterious.
+**Goals:** Catch your first fish. Learn one name. Figure out the tide chart.
+**NPC behavior:** Brief greetings. No one offers help unprompted. Cody says "yeah?" when you talk to him.
+**Unlocked:** Basic casting, one fishing spot (the easy one near dock), basic bait.
+
+### Layer 2: The Regular (Weeks 1-4)
+
+**Player state:** Catching fish sometimes. Knows the basic spots. Recognizes NPCs.
+**World state:** NPCs start remembering you. Weather patterns are emerging. Some fish are still mysterious.
+**Goals:** Catch a salmon. Learn a secret spot. Get Cody to trust you.
+**NPC behavior:** Nicknames start. "Morning, fisherman." Linda asks about your last trip. Maya follows you around.
+**Unlocked:** Trolling, new bait types, tide chart, weather radio.
+
+### Layer 3: The Fisherman (Months 1-3)
+
+**Player state:** Consistent catches. Knows when and where. Starting to understand the system.
+**World state:** Seasonal changes. Fish migration patterns. NPCs have opinions about your skill.
+**Goals:** Enter the derby. Explore the far waters. Build real trust with one NPC.
+**NPC behavior:** Real conversations. Cody shares tips. Pete challenges you. Thomas appears more often.
+**Unlocked:** Deep water fishing, new gear, tournament system, NPC quest lines.
+
+### Layer 4: The Old Hand (Months 3-6)
+
+**Player state:** Expert angler. Knows things new players don't. Has stories.
+**World state:** You're part of the community. New NPCs ask YOU for advice. The world responds to your reputation.
+**Goals:** Win the derby. Find Thomas's old grounds. Help Maya become a fisherman. Resolve Cody's story.
+**NPC behavior:** Deep relationships. Personal quests active. NPCs rely on you. Rivalry with Pete is intense.
+**Unlocked:** All fishing spots, advanced gear, secret locations, the full story.
+
+### Layer 5: The Legend (Months 6+)
+
+**Player state:** You've seen it all. Caught the rare fish. Weathered the storms. Know the Sound like the back of your hand.
+**World state:** Your actions are history. NPCs tell your stories. The world has changed because of you.
+**Goals:** Whatever you want. The training wheels are off.
+**NPC behavior:** They're proud of you. Some have grown alongside you (Maya can fish now). Some are fading (Thomas is old).
+**Unlocked:** Everything. Including the ability to change the world (preserve the old grounds? Open a charter? Train the next generation?).
+
+### Meta-Progression (Across Sessions)
+
+This game uses Minecraft as a platform — progression persists across play sessions:
+
+- **Agent memory persists.** Cody remembers you from last session. Thomas remembers what you promised.
+- **World state persists.** Seasons change. The derby happens monthly. Rare fish spawn based on cumulative calendar.
+- **Script improvement persists.** Cody's fishing scripts literally get better over time (the self-improvement loop from the vision doc). A player who's been playing for 6 months has a genuinely better Cody than a new player.
+- **Player reputation persists.** NPCs in other CraftMind games might reference your fishing achievements. "The guy who caught the hundred-pound halibut."
+
+### The Progression Philosophy
+
+**Horizontal > Vertical.** Progression isn't about bigger numbers (damage, stats). It's about deeper relationships, more knowledge, more options, richer stories. A new player and an old player face the same fishing — but the old player has context, history, and connections that make every catch mean more.
+
+**Time Is the Currency.** The rarest rewards can't be grinded — they require being present over time. Thomas's trust takes months. The whale might only appear once a season. The legend status requires a year of play. This makes absence meaningful.
+
+**Loss Is Progression.** Losing a big fish. A storm destroying gear. An NPC being disappointed in you. These aren't setbacks — they're story material. The progression system should embrace failure as narrative fuel.
+
+---
+
+## Appendix: Quick Reference — What Each Game Teaches Us
+
+| Game | Key Lesson | Apply To |
+|------|-----------|----------|
+| Fallout 4 | Companion affinity unlocks character depth | Trust milestones |
+| The Last of Us | AI partner that enhances, doesn't interrupt | Cody's fishing behavior |
+| Fire Emblem | Proximity + adversity = relationship | Familiarity system |
+| Dragon Age | Approval gates conversations and quests | Trust gates knowledge |
+| Stardew Valley | Schedules + gifts + heart events = attachment | NPC daily routines |
+| Animal Crossing | Personality types + memory + quirks = character feel | Agent personality diversity |
+| Dwarf Fortress | Simple rules → complex emergent stories | Cascade failure pattern |
+| RimWorld | AI storyteller creates dynamic difficulty | Weather/event pacing |
+| The Sims | Autonomous social behavior creates surprise | NPC-NPC interactions |
+| Crusader Kings | Competing AI goals create drama | Rivalry escalation |
+| Portal | Teaching through character, not tutorial | Cody's dialogue design |
+| Dark Souls | Teaching through consequence | Environmental learning |
+| Minecraft | Teaching through discovery | Fish variety and conditions |
+| Stardew fishing | Skill bar = physical tension | Reel-in minigame |
+| Dredge | Atmosphere + unknown = dread | Night fishing |
+| Factorio | Teaching through necessity | Gear progression |
+
+---
+
+*Document generated from gameplay research synthesis. Last updated: March 2026.*
