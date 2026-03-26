@@ -14,6 +14,8 @@ import { MinecraftFishing } from './minecraft-fishing.js';
 import { ScriptRunner, Script } from './script-engine.js';
 import { createFishingScripts } from './scripts/fishing.js';
 import { ScriptRegistry } from './scripts/registry.js';
+import { VisionSystem } from './vision.js';
+import { ResilientController, EMERGENCY_SCRIPTS } from './resilient-controller.js';
 
 // ── AI Modules ───────────────────────────────────────────────────────────────
 
@@ -1036,6 +1038,24 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
         }
       }, 8000);
       ctx._scriptRunner = scriptRunner;
+
+      // ── Vision + Resilient Controller ─────────────────────
+      const vision = new VisionSystem(ctx.bot);
+      const resilient = new ResilientController(scriptRunner, vision);
+      for (const es of EMERGENCY_SCRIPTS) {
+        resilient.registerEmergencyScript(es);
+      }
+      // Check vision availability on startup
+      vision.checkLocalVision().then(available => {
+        console.log(`[Vision] Moondream/Ollama: ${available ? '✅ available' : '❌ unavailable (heuristic fallback)'}`);
+      });
+      ctx._vision = vision;
+      ctx._resilient = resilient;
+      // Resilient tick every 10s — catches stuck bots, API failures, safety issues
+      const resilientLoop = setInterval(() => {
+        resilient.tick().catch(() => {});
+      }, 10000);
+      console.log('[FishingPlugin] Resilient controller active 🛡️');
     } catch (err) {
       console.warn('[FishingPlugin] Script runner init failed (non-fatal):', err.message);
     }
