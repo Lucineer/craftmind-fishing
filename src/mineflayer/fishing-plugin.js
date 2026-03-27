@@ -81,6 +81,11 @@ const fishingCommands = [
           ctx._ai.memory.updateWorking({ task: 'fishing', location: biome });
         }
 
+        // ── Reasoning Tracking ───────────────────────────────
+        const mood = ctx._scriptRunner?.mood || ctx._ai?.personality?.mood;
+        const moodStr = mood?.energy > 0.7 ? 'feeling energetic' : mood?.happiness > 0.7 ? 'feeling happy' : 'ready to fish';
+        _addReasoning(ctx, 'Cast line', `Method: ${method}, biome: ${biome || 'unknown'}, ${moodStr}`);
+
         ctx.reply(result.message);
       } else {
         ctx.reply(result.message);
@@ -113,6 +118,10 @@ const fishingCommands = [
             fishCount: (ctx._ai.memory.working.fishCount || 0) + result.catch.length,
             fishCaught: [...(ctx._ai.memory.working.fishCaught || []), ...result.catch],
           });
+          // ── Achievement Check ────────────────────────────────
+          _checkAchievements(ctx, 'fish');
+          // ── Reasoning Tracking ───────────────────────────────
+          _addReasoning(ctx, 'Reeled in catch', `Caught ${result.catch.length} fish, ${totalWeight.toFixed(1)}lb total`);
         } else {
           ctx._ai.personality.mood.update({ type: 'lost_fish' });
           ctx._ai.memory.addEpisode({ type: 'no_catch', tags: ['fishing', 'failure'] });
@@ -547,6 +556,56 @@ const fishingCommands = [
     },
   },
   {
+    name: 'verbose',
+    description: 'Toggle verbose narration mode (bot explains its actions)',
+    usage: '!verbose',
+    execute(ctx) {
+      ctx._verbose = !ctx._verbose;
+      const status = ctx._verbose ? 'ON' : 'OFF';
+      ctx.reply(`Verbose mode ${status}. I will ${ctx._verbose ? 'explain my reasoning' : 'work quietly'}.`);
+      console.log(`[ChatCommand] !verbose toggled to ${status} by ${ctx.username || 'unknown'}`);
+    },
+  },
+  {
+    name: 'why',
+    description: 'Show recent reasoning and decisions',
+    usage: '!why',
+    execute(ctx) {
+      const history = ctx._reasoningHistory || [];
+      if (history.length === 0) {
+        return ctx.reply("I haven't made any decisions yet. Ask me later!");
+      }
+      const now = Date.now();
+      const lines = history.map(entry => {
+        const ago = Math.floor((now - entry.timestamp) / 60000);
+        const timeStr = ago < 1 ? 'just now' : ago === 1 ? '1m ago' : `${ago}m ago`;
+        return `[${timeStr}] ${entry.action} — ${entry.reason}`;
+      });
+      ctx.reply(`Recent decisions: ${lines.join(' | ')}`);
+      console.log(`[ChatCommand] !why by ${ctx.username || 'unknown'}`);
+    },
+  },
+  {
+    name: 'achievements',
+    description: 'Show achievement progress',
+    usage: '!achievements',
+    execute(ctx) {
+      const achievements = ctx._achievements || {};
+      const entries = Object.entries(achievements);
+      if (entries.length === 0) {
+        return ctx.reply('No achievements defined yet.');
+      }
+      const lines = entries.map(([name, data]) => {
+        if (data.unlocked) {
+          return `✅ [UNLOCKED] ${name}`;
+        }
+        return `⬜ [${data.current}/${data.target}] ${name} — ${data.description}`;
+      });
+      ctx.reply(`Achievements: ${lines.join(' | ')}`);
+      console.log(`[ChatCommand] !achievements by ${ctx.username || 'unknown'}`);
+    },
+  },
+  {
     name: 'help',
     description: 'Show available commands',
     usage: '!help',
@@ -586,6 +645,132 @@ function _bestMethod(biome, game) {
 }
 
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// ── Engagement Features Helpers ───────────────────────────────────────────────
+
+/**
+ * Add a reasoning entry to the history (circular buffer, max 5 entries)
+ * @param {Object} ctx - Plugin context
+ * @param {string} action - Action taken (e.g., 'Cast line', 'Reeled in')
+ * @param {string} reason - Why the action was taken
+ */
+function _addReasoning(ctx, action, reason) {
+  if (!ctx._reasoningHistory) ctx._reasoningHistory = [];
+  ctx._reasoningHistory.push({
+    timestamp: Date.now(),
+    action,
+    reason,
+  });
+  // Keep only the last 5 entries
+  if (ctx._reasoningHistory.length > 5) {
+    ctx._reasoningHistory.shift();
+  }
+}
+
+/**
+ * Check and unlock achievements based on progress
+ * @param {Object} ctx - Plugin context
+ * @param {string} event - Event type ('fish', 'chat', etc.)
+ * @param {Object} data - Event data
+ */
+function _checkAchievements(ctx, event, data = {}) {
+  if (!ctx._achievements) return;
+
+  const botName = ctx.bot?.username || 'unknown';
+  const game = ctx._fishingGame;
+  const achievements = ctx._achievements;
+  let unlocked = [];
+
+  switch (event) {
+    case 'fish':
+      // Update fish count achievements
+      const totalFish = game?.player?.statistics?.totalFishCaught || 0;
+      for (const [name, ach] of Object.entries(achievements)) {
+        if (ach.target > 0 && (name.includes('Catch') || ['Dedicated', 'Pro', 'Master', 'Legendary'].includes(name))) {
+          ach.current = totalFish;
+          if (!ach.unlocked && ach.current >= ach.target) {
+            ach.unlocked = true;
+            unlocked.push(name);
+          }
+        }
+      }
+      // Check Night Owl (catch after midnight)
+      const hour = new Date().getHours();
+      if (hour >= 0 && hour < 4 && !achievements['Night Owl'].unlocked) {
+        achievements['Night Owl'].unlocked = true;
+        achievements['Night Owl'].current = 1;
+        unlocked.push('Night Owl');
+      }
+      break;
+
+    case 'chat':
+      // Track unique chats for Social Butterfly
+      if (data.message && !ctx._uniqueChats) ctx._uniqueChats = new Set();
+      if (data.message) ctx._uniqueChats.add(data.message);
+      achievements['Social Butterfly'].current = ctx._uniqueChats.size;
+      if (!achievements['Social Butterfly'].unlocked && achievements['Social Butterfly'].current >= achievements['Social Butterfly'].target) {
+        achievements['Social Butterfly'].unlocked = true;
+        unlocked.push('Social Butterfly');
+      }
+      break;
+  }
+
+  // Announce unlocked achievements
+  if (unlocked.length > 0) {
+    const celebrationMsgs = [
+      `🏆 Achievement Unlocked: ${unlocked.join(', ')}!`,
+      `🎖️ Achievement: ${unlocked.join(', ')} unlocked!`,
+      `✨ New achievement${unlocked.length > 1 ? 's' : ''}: ${unlocked.join(', ')}!`,
+    ];
+    const msg = celebrationMsgs[Math.floor(Math.random() * celebrationMsgs.length)];
+    setTimeout(() => ctx.bot?.chat(msg), 1000 + Math.random() * 2000);
+
+    // Persist achievements to file
+    _saveAchievements(ctx);
+  }
+}
+
+/**
+ * Save achievements to /tmp/achievements-{botname}.json
+ * @param {Object} ctx - Plugin context
+ */
+function _saveAchievements(ctx) {
+  const botName = ctx.bot?.username || 'unknown';
+  const filePath = `/tmp/achievements-${botName}.json`;
+  try {
+    const fs = _require('fs');
+    const data = {
+      botName,
+      timestamp: new Date().toISOString(),
+      achievements: ctx._achievements,
+      uniqueChats: Array.from(ctx._uniqueChats || []),
+    };
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    console.log(`[Achievements] Saved to ${filePath}`);
+  } catch (err) {
+    console.warn(`[Achievements] Failed to save: ${err.message}`);
+  }
+}
+
+/**
+ * Load achievements from /tmp/achievements-{botname}.json
+ * @param {Object} ctx - Plugin context
+ */
+function _loadAchievements(ctx) {
+  const botName = ctx.bot?.username || 'unknown';
+  const filePath = `/tmp/achievements-${botName}.json`;
+  try {
+    const fs = _require('fs');
+    if (fs.existsSync(filePath)) {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      ctx._achievements = { ...ctx._achievements, ...data.achievements };
+      ctx._uniqueChats = new Set(data.uniqueChats || []);
+      console.log(`[Achievements] Loaded from ${filePath}`);
+    }
+  } catch (err) {
+    console.warn(`[Achievements] Failed to load: ${err.message}`);
+  }
+}
 
 // ── Build Behavior Tree ───────────────────────────────────────────────────────
 
@@ -1070,6 +1255,20 @@ const fishingPlugin = {
     // Track current session for recording
     ctx._liveSession = null;
 
+    // ── Engagement Features: Verbose, Reasoning, Achievements ──
+    ctx._verbose = false; // Toggle for narration mode
+    ctx._reasoningHistory = []; // Circular buffer of recent decisions (max 5)
+    ctx._achievements = { // Track achievement progress
+      'First Catch': { unlocked: false, current: 0, target: 1, description: 'Catch your first fish' },
+      'Dedicated': { unlocked: false, current: 0, target: 10, description: 'Catch 10 fish' },
+      'Pro': { unlocked: false, current: 0, target: 50, description: 'Catch 50 fish' },
+      'Master': { unlocked: false, current: 0, target: 100, description: 'Catch 100 fish' },
+      'Legendary': { unlocked: false, current: 0, target: 500, description: 'Catch 500 fish' },
+      'Social Butterfly': { unlocked: false, current: 0, target: 20, description: 'Send 20 unique chat messages' },
+      'Night Owl': { unlocked: false, current: 0, target: 1, description: 'Catch a fish after midnight' },
+    };
+    ctx._uniqueChats = new Set(); // Track unique chat messages for Social Butterfly
+
     // Create WorldManager for Minecraft world integration
     try {
       const { WorldBuilder } = await import('./world-builder.js');
@@ -1254,7 +1453,7 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
     let scriptRunner = null;
     let scriptRegistry = null;
     try {
-      scriptRunner = new ScriptRunner(ctx.bot, {});
+      scriptRunner = new ScriptRunner(ctx.bot, { pluginCtx: ctx });
 
       // Load registry scripts (v1/v2/v3 from scripts/ directory)
       scriptRegistry = new ScriptRegistry();
@@ -1507,7 +1706,10 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
 
           // Execute dialogue first (immediate chat response)
           if (plan.dialogue) {
-            ctx.bot?.chat?.(plan.dialogue.slice(0, 256)); // MC chat limit
+            const dialogue = plan.dialogue.slice(0, 256); // MC chat limit
+            ctx.bot?.chat?.(dialogue);
+            // ── Achievement Check ───────────────────────────────
+            _checkAchievements(ctx, 'chat', { message: dialogue });
           }
 
           // Enqueue actions for execution
@@ -1596,6 +1798,9 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
     this._saveLoop = saveLoop;
     this._game = game;
     this._ctx = ctx;
+
+    // ── Load Achievements from disk ──────────────────────────
+    _loadAchievements(ctx);
 
     console.log('[FishingPlugin] v2.0 Loaded — Sitka Sound fishing + AI behavior engine 🎣🧠');
   },

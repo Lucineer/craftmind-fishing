@@ -124,6 +124,7 @@ export class ScriptRunner {
     this.bot = bot;
     this.scripts = new Map();
     this.mood = options.mood || new MoodSystem();
+    this.pluginCtx = options.pluginCtx || null; // Fishing plugin context for verbose/achievements
     this.context = {
       fishCaught: 0,
       totalEarned: 0,
@@ -319,6 +320,15 @@ export class ScriptRunner {
     // Debug logging for step execution
     if (process.env.DEBUG_SCRIPTS || step.type === 'fish') {
       console.log(`[ScriptRunner] 🔧 Executing step: ${step.type}${step.name ? ` (${step.name})` : ''}${step.scriptName ? ` -> ${step.scriptName}` : ''}`);
+    }
+
+    // ── Verbose Narration ───────────────────────────────────────
+    // If verbose mode is on, narrate the action before executing
+    if (this.pluginCtx?._verbose && this.bot?.chat) {
+      const narration = this._narrateStep(step);
+      if (narration && narration.length < 80) {
+        this.bot.chat(narration);
+      }
     }
 
     switch (step.type) {
@@ -593,6 +603,58 @@ export class ScriptRunner {
         reject(new Error('INTERRUPTED'));
       };
     });
+  }
+
+  /**
+   * Generate a narration message for a step (used in verbose mode)
+   * @param {Object} step - Step object
+   * @returns {string|null} Narration message or null
+   */
+  _narrateStep(step) {
+    const mood = this.mood;
+    const moodText = mood?.energy > 0.7 ? 'feeling energetic' :
+                     mood?.happiness > 0.7 ? 'feeling happy' :
+                     mood?.energy < 0.3 ? 'feeling tired' : 'feeling okay';
+
+    switch (step.type) {
+      case 'fish':
+        const fishReasons = [
+          `I see water nearby, going to cast my line.`,
+          `Time to fish. ${moodText}, hoping for a bite.`,
+          `Going to cast here. ${moodText}.`,
+          `Fishing now. Let's see what I catch.`,
+        ];
+        return fishReasons[Math.floor(Math.random() * fishReasons.length)];
+
+      case 'chat':
+        return null; // Don't narrate chat steps (the chat itself is the output)
+
+      case 'wait':
+        const waitReasons = [
+          `Taking a short break to observe.`,
+          `Waiting a moment. ${moodText}.`,
+          `Pausing briefly.`,
+        ];
+        return waitReasons[Math.floor(Math.random() * waitReasons.length)];
+
+      case 'action':
+        if (step.name === 'look_around') {
+          return `Looking around to check my surroundings.`;
+        }
+        if (step.name === 'equip_rod') {
+          return `Getting my fishing rod ready.`;
+        }
+        return `Taking action: ${step.name || 'unknown'}.`;
+
+      case 'branch':
+        return `Making a decision based on conditions.`;
+
+      case 'goto':
+        return `Moving to script: ${step.scriptName}.`;
+
+      default:
+        return null;
+    }
   }
 
   // ── Hot-Swap Support ──────────────────────────────────────
