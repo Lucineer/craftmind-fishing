@@ -34,6 +34,12 @@
  */
 
 import { SkillTree, createSkillTree } from './skill-tree.js';
+import { createRequire } from 'node:module';
+const _pfRequire = createRequire(import.meta.url);
+const _Movements = _pfRequire('mineflayer-pathfinder').Movements;
+
+// Access pathfinder goals via bot instance (avoid dual ESM/CJS loading)
+function getGoals(bot) { return bot?.pathfinder?.goals; }
 
 export function weightedRandom(weights) {
   // Weights as Map or object. Keys are cumulative probabilities, values are outcomes.
@@ -524,8 +530,8 @@ export class ScriptRunner {
                     maxDistance: 20,
                   });
                   if (treeBlock) {
-                    const { goals } = require('mineflayer-pathfinder');
-                    this.bot.pathfinder.setGoal(new goals.GoalBlock(treeBlock.x, treeBlock.y, treeBlock.z));
+                    const pg = this.bot.pathfinder.goals;
+                    this.bot.pathfinder.setGoal(new pg.GoalBlock(treeBlock.x, treeBlock.y, treeBlock.z));
                     await this._wait(5000);
                     // Break the block
                     const targetBlock = this.bot.blockAt(treeBlock.position);
@@ -649,9 +655,8 @@ export class ScriptRunner {
                 );
                 goalPos = goalPos.normalize().scale(8);
               }
-              const { goals } = require('mineflayer-pathfinder');
-              const { Movements } = require('mineflayer-pathfinder');
-              const defaultMove = new Movements(this.bot);
+              const pg = this.bot.pathfinder.goals;
+              const defaultMove = new _Movements(this.bot);
               defaultMove.allowSprinting = true;
               this.bot.pathfinder.setMovements(defaultMove);
               this.bot.pathfinder.setGoal(new goals.GoalNear(goalPos.x, goalPos.y, goalPos.z, 3));
