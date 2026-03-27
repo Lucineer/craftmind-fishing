@@ -34,9 +34,7 @@
  */
 
 import { SkillTree, createSkillTree } from './skill-tree.js';
-import { createRequire } from 'node:module';
-const _pfRequire = createRequire(import.meta.url);
-const _Movements = _pfRequire('mineflayer-pathfinder').Movements;
+
 
 // Access pathfinder goals via bot instance (avoid dual ESM/CJS loading)
 function getGoals(bot) { return bot?.pathfinder?.goals; }
@@ -656,10 +654,7 @@ export class ScriptRunner {
                 goalPos = goalPos.normalize().scale(8);
               }
               const pg = this.bot.pathfinder.goals;
-              const defaultMove = new _Movements(this.bot);
-              defaultMove.allowSprinting = true;
-              this.bot.pathfinder.setMovements(defaultMove);
-              this.bot.pathfinder.setGoal(new goals.GoalNear(goalPos.x, goalPos.y, goalPos.z, 3));
+              this.bot.pathfinder.setGoal(new pg.GoalNear(goalPos.x, goalPos.y, goalPos.z, 3));
               console.log(`[ScriptRunner] Pathing to water at (${goalPos.x.toFixed(1)}, ${goalPos.y.toFixed(1)}, ${goalPos.z.toFixed(1)})`);
               await this._wait(8000); // Give pathfinder time to navigate
               this.bot.pathfinder.setGoal(null); // Clear goal
