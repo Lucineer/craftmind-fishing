@@ -95,3 +95,33 @@ export class ScriptRegistry {
     Object.assign(entry.stats, delta);
   }
 }
+
+/**
+ * Get pinned script for a bot from config/bot-assignments.json
+ * @param {string} botName - The bot's username
+ * @returns {string|null} - The pinned script name or null if not found/error
+ */
+export function getPinnedScript(botName) {
+  try {
+    // Resolve path from project root (go up from src/mineflayer/scripts/ to project root)
+    const projectRoot = join(__dirname, '..', '..', '..');
+    const configPath = join(projectRoot, 'config', 'bot-assignments.json');
+
+    const configData = readFileSync(configPath, 'utf-8');
+    const assignments = JSON.parse(configData);
+
+    // Case-insensitive bot name matching for robustness
+    const normalizedBotName = botName?.toLowerCase();
+    for (const [key, scriptName] of Object.entries(assignments)) {
+      if (key.toLowerCase() === normalizedBotName) {
+        return scriptName;
+      }
+    }
+
+    return null;
+  } catch (err) {
+    // File not found or parse error - return null silently
+    // This allows graceful degradation if config doesn't exist
+    return null;
+  }
+}

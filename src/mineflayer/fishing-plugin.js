@@ -13,7 +13,7 @@ import { SitkaFishingGame, METHOD_BIOME_RULES } from '../integration/game-engine
 import { MinecraftFishing } from './minecraft-fishing.js';
 import { ScriptRunner, Script } from './script-engine.js';
 import { createFishingScripts } from './scripts/fishing.js';
-import { ScriptRegistry } from './scripts/registry.js';
+import { ScriptRegistry, getPinnedScript } from './scripts/registry.js';
 import { VisionSystem } from './vision.js';
 import { ResilientController, EMERGENCY_SCRIPTS } from './resilient-controller.js';
 import { StuckDetector } from './stuck-detector.js';
@@ -793,22 +793,57 @@ const fishingPlugin = {
     const rconPort = parseInt(process.env.SERVER_PORT || '0') + 10000;
     ctx.events.on('SPAWN', () => {
       console.log(`[FishingPlugin] SPAWN handler fired for ${ctx.bot?.username} (RCON port ${rconPort})`);
-      // Wrap bot.chat with a global rate limiter (max 1 msg/3s, prevents spam kick)
+      // Wrap bot.chat with a sliding window rate limiter (allows natural bursts, prevents spam)
+      // - MAX_PER_WINDOW: 7 messages per 30 second window
+      // - MAX_BURST: 3 messages per 3 second burst window
       if (ctx.bot && !ctx.bot._origChat) {
         const orig = ctx.bot.chat.bind(ctx.bot);
-        let lastChat = 0;
-        let pending = null;
+        const MAX_PER_WINDOW = 7;
+        const WINDOW_MS = 30000; // 30 seconds
+        const MAX_BURST = 3;
+        const BURST_MS = 3000; // 3 seconds
+        const timestamps = [];
+        let pendingTimeout = null;
+
         ctx.bot._origChat = orig;
         ctx.bot.chat = (msg) => {
           const now = Date.now();
-          const delay = Math.max(0, 3000 - (now - lastChat)) + Math.random() * 1500;
-          lastChat = now + delay;
-          if (delay > 100) {
-            clearTimeout(pending);
-            pending = setTimeout(() => orig(msg), delay);
-          } else {
-            orig(msg);
+
+          // Prune timestamps older than 30 seconds
+          while (timestamps.length > 0 && timestamps[0] < now - WINDOW_MS) {
+            timestamps.shift();
           }
+
+          // Check if we're at the per-window limit
+          if (timestamps.length >= MAX_PER_WINDOW) {
+            // Delay until oldest timestamp + window + buffer
+            const oldestTimestamp = timestamps[0];
+            const delay = (oldestTimestamp + WINDOW_MS + 100) - now;
+
+            clearTimeout(pendingTimeout);
+            pendingTimeout = setTimeout(() => {
+              timestamps.push(now + delay);
+              orig(msg);
+            }, delay);
+            return;
+          }
+
+          // Check burst: if 3+ messages in last 3 seconds, add delay
+          const recentBurst = timestamps.filter(t => t >= now - BURST_MS).length;
+          if (recentBurst >= MAX_BURST) {
+            const delay = 500 + Math.random() * 1000; // 500-1500ms random delay
+
+            clearTimeout(pendingTimeout);
+            pendingTimeout = setTimeout(() => {
+              timestamps.push(now + delay);
+              orig(msg);
+            }, delay);
+            return;
+          }
+
+          // Send immediately
+          timestamps.push(now);
+          orig(msg);
         };
       }
       setTimeout(async () => {
@@ -1071,11 +1106,16 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
       // Start auto-run after 8 seconds (let BT handle initial survival setup)
       setTimeout(() => {
         if (ctx.bot?.entity) {
-          if (preferredScript && scriptRegistry.get(preferredScript)) {
-            scriptRunner.switchToV1({ ...scriptRegistry.get(preferredScript), name: preferredScript });
-            console.log(`[FishingPlugin] Starting with script: ${preferredScript}`);
-          } else if (preferredScript) {
-            console.warn(`[FishingPlugin] CODY_SCRIPT="${preferredScript}" not found in registry, falling back to auto-run`);
+          // Check for pinned script from config/bot-assignments.json (highest priority for A/B testing)
+          const pinnedScript = getPinnedScript(ctx.bot?.username);
+          const selectedScript = pinnedScript || preferredScript || null;
+
+          if (selectedScript && scriptRegistry.get(selectedScript)) {
+            scriptRunner.switchToV1({ ...scriptRegistry.get(selectedScript), name: selectedScript });
+            const source = pinnedScript ? 'pinned' : 'CODY_SCRIPT';
+            console.log(`[FishingPlugin] Starting with script: ${selectedScript} (${source})`);
+          } else if (selectedScript) {
+            console.warn(`[FishingPlugin] Script "${selectedScript}" not found in registry, falling back to auto-run`);
             scriptRunner.startAutoRun(3000);
           } else {
             scriptRunner.startAutoRun(3000);
