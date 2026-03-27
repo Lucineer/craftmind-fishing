@@ -39,6 +39,11 @@ import { ConversationMemory } from '../ai/conversation-memory.js';
 import { Survival } from './survival.js';
 import { Equipper } from './equipper.js';
 
+// ── RCON for spawn supplies ─────────────────────────────────────────────────────
+import { createRequire } from 'node:module';
+const _require = createRequire(import.meta.url);
+const { Rcon } = _require('rcon-client');
+
 // ── Fishing commands ──────────────────────────────────────────────────────────
 
 const fishingCommands = [
@@ -786,11 +791,26 @@ const fishingPlugin = {
     const rconPort = parseInt(process.env.SERVER_PORT || '0') + 10000;
     ctx.events.on('SPAWN', () => {
       console.log(`[FishingPlugin] SPAWN handler fired for ${ctx.bot?.username} (RCON port ${rconPort})`);
+      // Wrap bot.chat with a global rate limiter (max 1 msg/3s, prevents spam kick)
+      if (ctx.bot && !ctx.bot._origChat) {
+        const orig = ctx.bot.chat.bind(ctx.bot);
+        let lastChat = 0;
+        let pending = null;
+        ctx.bot._origChat = orig;
+        ctx.bot.chat = (msg) => {
+          const now = Date.now();
+          const delay = Math.max(0, 3000 - (now - lastChat)) + Math.random() * 1500;
+          lastChat = now + delay;
+          if (delay > 100) {
+            clearTimeout(pending);
+            pending = setTimeout(() => orig(msg), delay);
+          } else {
+            orig(msg);
+          }
+        };
+      }
       setTimeout(async () => {
         try {
-          const { createRequire } = await import('node:module');
-          const req = createRequire(import.meta.url);
-          const { Rcon } = req('/home/lucineer/projects/craftmind/node_modules/rcon-client');
           if (rconPort >= 30000) return;
           const rcon = await Rcon.connect({ host: 'localhost', port: rconPort, password: 'fishing42' });
           await rcon.send(`give ${ctx.bot?.username || '@p'} fishing_rod 3`);
@@ -1137,7 +1157,7 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
       setTimeout(() => {
         const state = game.getState();
         ctx.bot?.chat?.(`🎣 Sitka Sound — ${state.weather.emoji || ''} ${state.weather.name || 'clear'}, ${state.tide.emoji || ''} ${state.tide.phase || 'tide unknown'}${state.weather.seaState > 3 ? '. Rough out there.' : ''}. Type !help for commands, or just talk to me.`);
-      }, 3000);
+      }, 3000 + Math.random() * 5000);
     });
 
     // ── Chat event: personality-driven responses + NL planning ─────────────
