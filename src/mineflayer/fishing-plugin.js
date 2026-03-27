@@ -41,10 +41,16 @@ import { Survival } from './survival.js';
 import { Equipper } from './equipper.js';
 
 // ── RCON for spawn supplies ─────────────────────────────────────────────────────
+// RCON helper — loaded via createRequire to avoid ESM/CJS interop issues
 import { createRequire } from 'node:module';
 const _require = createRequire(import.meta.url);
-const { Rcon } = _require('rcon-client');
-import { goals } from 'mineflayer-pathfinder';
+const { giveSupplies, teleport: rconTeleport, send: rconSend } = _require('/home/lucineer/projects/craftmind/src/utils/rcon-helper.cjs');
+// goals accessed via ctx.bot.pathfinder.goals at runtime (avoids ESM/CJS interop)
+let _goals = null;
+function getGoals(ctx) {
+  if (!_goals) _goals = ctx.bot?.pathfinder?.goals;
+  return _goals;
+}
 
 // ── Fishing commands ──────────────────────────────────────────────────────────
 
@@ -410,6 +416,134 @@ const fishingCommands = [
       const scriptData = registry.get(name);
       if (!scriptData) return ctx.reply(`Unknown script: ${name}`);
       ctx._scriptRunner?.switchToV1({ ...scriptData, name }, `Alright, let me try ${name}.`);
+    },
+  },
+  {
+    name: 'status',
+    description: 'Show bot status for play testing',
+    usage: '!status',
+    execute(ctx) {
+      const bot = ctx.bot;
+      const scriptRunner = ctx._scriptRunner;
+      const ai = ctx._ai;
+      const game = ctx._fishingGame;
+
+      // Format uptime as HH:MM:SS
+      const uptimeSecs = Math.floor(process.uptime());
+      const hours = Math.floor(uptimeSecs / 3600);
+      const mins = Math.floor((uptimeSecs % 3600) / 60);
+      const secs = uptimeSecs % 60;
+      const uptime = `${hours}h ${mins}m ${secs}s`;
+
+      // Get mood values
+      const mood = scriptRunner?.mood || ai?.personality?.mood;
+      const moodValues = mood ? {
+        energy: (mood.energy ?? 1).toFixed(2),
+        happiness: (mood.happiness ?? 0.5).toFixed(2),
+        satisfaction: (mood.satisfaction ?? 0.5).toFixed(2),
+        frustration: (mood.frustration ?? 0).toFixed(2),
+        chattiness: (mood.chattiness ?? 0.5).toFixed(2),
+        speed: (mood.speed ?? 1).toFixed(2),
+      } : { energy: 'N/A', happiness: 'N/A', satisfaction: 'N/A', frustration: 'N/A', chattiness: 'N/A', speed: 'N/A' };
+
+      // Get fish count
+      const fishCount = ai?.memory?.working?.fishCount || game?.player?.statistics?.totalFishCaught || 0;
+
+      const lines = [
+        `🤖 Bot: ${bot?.username || 'Unknown'}`,
+        `📊 Mood: E${moodValues.energy} H${moodValues.happiness} S${moodValues.satisfaction} F${moodValues.frustration}`,
+        `⚡ Energy: ${moodValues.energy} | 💬 Chattiness: ${moodValues.chattiness} | 🏃 Speed: ${moodValues.speed}`,
+        `🎣 Script: ${scriptRunner?.currentScript || 'none'} | 🐟 Fish: ${fishCount}`,
+        `⏱ Uptime: ${uptime}`,
+      ];
+
+      ctx.reply(lines.join(' | '));
+
+      // Log for telemetry
+      console.log(`[ChatCommand] !status by ${ctx.username || 'unknown'} - ${lines.join(' | ')}`);
+    },
+  },
+  {
+    name: 'mood',
+    description: 'Set bot mood value directly (play testing)',
+    usage: '!mood <value>',
+    execute(ctx, value) {
+      if (value === undefined) return ctx.reply('Usage: !mood <0.0-1.0>');
+
+      const moodVal = parseFloat(value);
+      if (isNaN(moodVal) || moodVal < 0 || moodVal > 1) {
+        return ctx.reply('Mood must be between 0.0 and 1.0');
+      }
+
+      const scriptRunner = ctx._scriptRunner;
+      const ai = ctx._ai;
+      const mood = scriptRunner?.mood || ai?.personality?.mood;
+
+      if (!mood) return ctx.reply('Mood system not available.');
+
+      // Set all mood-related values to the specified value
+      mood.mood = moodVal;
+      mood.energy = moodVal;
+      mood.happiness = moodVal;
+      mood.satisfaction = moodVal;
+      mood.frustration = 1 - moodVal; // Inverse relationship
+
+      ctx.reply(`Mood set to ${moodVal.toFixed(2)}`);
+
+      // Log for telemetry
+      console.log(`[ChatCommand] !mood ${moodVal} by ${ctx.username || 'unknown'}`);
+    },
+  },
+  {
+    name: 'energy',
+    description: 'Set bot energy level (play testing)',
+    usage: '!energy <value>',
+    execute(ctx, value) {
+      if (value === undefined) return ctx.reply('Usage: !energy <0.0-1.0>');
+
+      const energyVal = parseFloat(value);
+      if (isNaN(energyVal) || energyVal < 0 || energyVal > 1) {
+        return ctx.reply('Energy must be between 0.0 and 1.0');
+      }
+
+      const scriptRunner = ctx._scriptRunner;
+      const ai = ctx._ai;
+      const mood = scriptRunner?.mood || ai?.personality?.mood;
+
+      if (!mood) return ctx.reply('Mood system not available.');
+
+      mood.energy = energyVal;
+
+      ctx.reply(`Energy set to ${energyVal.toFixed(2)}`);
+
+      // Log for telemetry
+      console.log(`[ChatCommand] !energy ${energyVal} by ${ctx.username || 'unknown'}`);
+    },
+  },
+  {
+    name: 'chattiness',
+    description: 'Set how chatty the bot is (play testing)',
+    usage: '!chattiness <value>',
+    execute(ctx, value) {
+      if (value === undefined) return ctx.reply('Usage: !chattiness <0.0-1.0>');
+
+      const chatVal = parseFloat(value);
+      if (isNaN(chatVal) || chatVal < 0 || chatVal > 1) {
+        return ctx.reply('Chattiness must be between 0.0 and 1.0');
+      }
+
+      const scriptRunner = ctx._scriptRunner;
+      const ai = ctx._ai;
+      const mood = scriptRunner?.mood || ai?.personality?.mood;
+
+      if (!mood) return ctx.reply('Mood system not available.');
+
+      mood.chattiness = chatVal;
+
+      ctx.reply(`Chattiness set to ${chatVal.toFixed(2)}`);
+
+      // Log for telemetry
+      console.log(`[ChatCommand] !chattiness ${chatVal} by ${ctx.username || 'unknown'}`);
     },
   },
 ];
@@ -848,12 +982,7 @@ const fishingPlugin = {
       }
       setTimeout(async () => {
         try {
-          if (rconPort >= 30000) return;
-          const rcon = await Rcon.connect({ host: 'localhost', port: rconPort, password: 'fishing42' });
-          await rcon.send(`give ${ctx.bot?.username || '@p'} fishing_rod 3`);
-          await rcon.send(`give ${ctx.bot?.username || '@p'} bread 32`);
-          console.log(`[FishingPlugin] RCON supplies given to ${ctx.bot?.username}`);
-          await rcon.end();
+          await giveSupplies(rconPort, ctx.bot?.username || '@p');
           if (ctx._equipper) setTimeout(() => ctx._equipper.equipAll(), 2000);
         } catch (e) {
           console.warn('[FishingPlugin] RCON supply failed:', e.message);
@@ -1194,9 +1323,7 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
             } else if (stuckInfo.level === 2) {
               // Level 2: Re-pathfind to water + RCON give fishing_rod
               console.log('[StuckDetector] Recovery Level 2: Re-pathfind to water + resupply');
-              const rcon = await Rcon.connect({ host: 'localhost', port: rconPort, password: 'fishing42' });
-              await rcon.send(`give ${ctx.bot?.username || '@p'} fishing_rod 3`);
-              await rcon.end();
+              await giveSupplies(rconPort, ctx.bot?.username || '@p');
 
               // Pathfind to nearest water
               if (ctx.bot?.pathfinder) {
@@ -1206,16 +1333,14 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
                   count: 1
                 })[0];
                 if (waterBlock) {
-                  ctx.bot.pathfinder.setGoal(new goals.GoalBlock(waterBlock.x, waterBlock.y, waterBlock.z));
+                  ctx.bot.pathfinder.setGoal(new (getGoals(ctx).GoalBlock)(waterBlock.x, waterBlock.y, waterBlock.z));
                 }
               }
 
             } else if (stuckInfo.level === 3) {
               // Level 3: TP to safe spawn, reset counter
               console.log('[StuckDetector] Recovery Level 3: TP to safe spawn + full reset');
-              const rcon = await Rcon.connect({ host: 'localhost', port: rconPort, password: 'fishing42' });
-              await rcon.send(`tp ${ctx.bot?.username || '@p'} 0 64 0`);
-              await rcon.end();
+              await rconTeleport(rconPort, ctx.bot?.username || '@p', 0, 64, 0);
 
               stuckDetector.reset();
               scriptRunner?.loadRandomScript?.();
