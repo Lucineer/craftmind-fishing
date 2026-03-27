@@ -16,6 +16,7 @@ import { createFishingScripts } from './scripts/fishing.js';
 import { ScriptRegistry } from './scripts/registry.js';
 import { VisionSystem } from './vision.js';
 import { ResilientController, EMERGENCY_SCRIPTS } from './resilient-controller.js';
+import { StuckDetector } from './stuck-detector.js';
 
 // ── AI Modules ───────────────────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ import { Equipper } from './equipper.js';
 import { createRequire } from 'node:module';
 const _require = createRequire(import.meta.url);
 const { Rcon } = _require('rcon-client');
+import { goals } from 'mineflayer-pathfinder';
 
 // ── Fishing commands ──────────────────────────────────────────────────────────
 
@@ -1100,6 +1102,85 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
         resilient.tick().catch(() => {});
       }, 10000);
       console.log('[FishingPlugin] Resilient controller active 🛡️');
+
+      // ── Stuck Detection System ─────────────────────────────
+      const stuckDetector = new StuckDetector();
+      ctx._stuckDetector = stuckDetector;
+
+      // Track fish catches for stuck detection
+      const originalRecordFish = scriptRunner?.recordFish;
+      if (originalRecordFish) {
+        scriptRunner.recordFish = function(...args) {
+          stuckDetector.recordFish(scriptRunner.context?.fishCaught || 0);
+          return originalRecordFish.apply(this, args);
+        };
+      }
+
+      // Track chat messages for stuck detection
+      ctx.events.on('CHAT', (username, message) => {
+        if (username === (ctx.bot?.username || 'Cody')) return;
+        stuckDetector.recordChat(message);
+      });
+
+      // Stuck detection check every 30s
+      const stuckCheckLoop = setInterval(async () => {
+        if (!ctx.bot?.entity) return;
+
+        // Record current position
+        const pos = ctx.bot.entity.position;
+        stuckDetector.recordPosition({ x: pos.x, y: pos.y, z: pos.z });
+
+        // Check if stuck
+        const stuckInfo = stuckDetector.isStuck();
+        if (stuckInfo) {
+          console.log(`[StuckDetector] Level ${stuckInfo.level}: ${stuckInfo.reason}`);
+
+          try {
+            const rconPort = parseInt(process.env.SERVER_PORT || '0') + 10000;
+            if (rconPort >= 30000) return;
+
+            // Recovery actions based on level
+            if (stuckInfo.level === 1) {
+              // Level 1: Load random script
+              console.log('[StuckDetector] Recovery Level 1: Loading random script');
+              scriptRunner?.loadRandomScript?.();
+
+            } else if (stuckInfo.level === 2) {
+              // Level 2: Re-pathfind to water + RCON give fishing_rod
+              console.log('[StuckDetector] Recovery Level 2: Re-pathfind to water + resupply');
+              const rcon = await Rcon.connect({ host: 'localhost', port: rconPort, password: 'fishing42' });
+              await rcon.send(`give ${ctx.bot?.username || '@p'} fishing_rod 3`);
+              await rcon.end();
+
+              // Pathfind to nearest water
+              if (ctx.bot?.pathfinder) {
+                const waterBlock = ctx.bot.findBlocks({
+                  matching: ctx.bot.registry.blocksByName.water?.id,
+                  maxDistance: 32,
+                  count: 1
+                })[0];
+                if (waterBlock) {
+                  ctx.bot.pathfinder.setGoal(new goals.GoalBlock(waterBlock.x, waterBlock.y, waterBlock.z));
+                }
+              }
+
+            } else if (stuckInfo.level === 3) {
+              // Level 3: TP to safe spawn, reset counter
+              console.log('[StuckDetector] Recovery Level 3: TP to safe spawn + full reset');
+              const rcon = await Rcon.connect({ host: 'localhost', port: rconPort, password: 'fishing42' });
+              await rcon.send(`tp ${ctx.bot?.username || '@p'} 0 64 0`);
+              await rcon.end();
+
+              stuckDetector.reset();
+              scriptRunner?.loadRandomScript?.();
+            }
+          } catch (e) {
+            console.warn('[StuckDetector] Recovery failed:', e.message);
+          }
+        }
+      }, 30000);
+      this._stuckCheckLoop = stuckCheckLoop;
+      console.log('[FishingPlugin] Stuck detector active 🔍');
     } catch (err) {
       console.warn('[FishingPlugin] Script runner init failed (non-fatal):', err.message);
     }

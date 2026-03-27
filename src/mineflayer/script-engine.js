@@ -332,9 +332,10 @@ export class ScriptRunner {
         // Check chattiness — sometimes just don't say anything
         if (Math.random() > this.mood.chattiness) break;
         // Rate limit: don't chat more than once every 3 seconds
-        if (Date.now() - this.context.lastChatTime < 3000) break;
+        if (Date.now() - this.context.lastChatTime < 5000) break;
         const msg = step.pick();
         if (msg && typeof msg === 'string') {
+          await new Promise(r => setTimeout(r, Math.random() * 2000));
           this.bot.chat(msg);
           this.context.lastChatTime = Date.now();
         }

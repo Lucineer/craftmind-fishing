@@ -3,6 +3,7 @@
  * Auto-discovers v1-*.js scripts, loads them dynamically, tracks stats.
  */
 import { readdir } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
