@@ -1083,6 +1083,12 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
       const hasV2Plus = registryScripts.some(e => e.filename?.match(/v[2-9]/) || (e.version || 1) >= 2);
       const preferredScript = process.env.CODY_SCRIPT || null;
 
+      // Check for pinned script on initial load (before any auto-selection)
+      const pinnedScript = getPinnedScript(ctx.bot?.username);
+      if (pinnedScript) {
+        console.log(`[FishingPlugin] Pinned script found for ${ctx.bot?.username}: ${pinnedScript}`);
+      }
+
       for (const entry of registryScripts) {
         const data = scriptRegistry.get(entry.name);
         if (data) {
@@ -1106,13 +1112,13 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
       // Start auto-run after 8 seconds (let BT handle initial survival setup)
       setTimeout(() => {
         if (ctx.bot?.entity) {
-          // Check for pinned script from config/bot-assignments.json (highest priority for A/B testing)
-          const pinnedScript = getPinnedScript(ctx.bot?.username);
-          const selectedScript = pinnedScript || preferredScript || null;
+          // Re-check pinned script now that bot has spawned (may have been null at initial load)
+          const currentPinnedScript = getPinnedScript(ctx.bot?.username);
+          const selectedScript = currentPinnedScript || pinnedScript || preferredScript || null;
 
           if (selectedScript && scriptRegistry.get(selectedScript)) {
             scriptRunner.switchToV1({ ...scriptRegistry.get(selectedScript), name: selectedScript });
-            const source = pinnedScript ? 'pinned' : 'CODY_SCRIPT';
+            const source = currentPinnedScript ? 'pinned' : (pinnedScript ? 'initial-pinned' : 'CODY_SCRIPT');
             console.log(`[FishingPlugin] Starting with script: ${selectedScript} (${source})`);
           } else if (selectedScript) {
             console.warn(`[FishingPlugin] Script "${selectedScript}" not found in registry, falling back to auto-run`);
@@ -1257,6 +1263,17 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
 
     // ── Spawn event ──────────────────────────────────────────
     ctx.events.on('SPAWN', () => {
+      // Load pinned script immediately on spawn (before any auto-selection)
+      const scriptRunner = ctx._scriptRunner;
+      const scriptRegistry = ctx._scriptRegistry;
+      if (scriptRunner && scriptRegistry) {
+        const pinnedScript = getPinnedScript(ctx.bot?.username);
+        if (pinnedScript && scriptRegistry.get(pinnedScript)) {
+          console.log(`[FishingPlugin] Loading pinned script on spawn: ${pinnedScript} for ${ctx.bot?.username}`);
+          scriptRunner.switchToV1({ ...scriptRegistry.get(pinnedScript), name: pinnedScript });
+        }
+      }
+
       // TP to dock on respawn (prevent wandering into water/void)
       const pos = ctx.bot?.entity?.position;
       if (pos) {
