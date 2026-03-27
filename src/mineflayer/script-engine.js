@@ -653,7 +653,8 @@ export class ScriptRunner {
                 );
                 goalPos = goalPos.normalize().scale(8);
               }
-              const pg = this.bot.pathfinder.goals;
+              const pg = this.bot.pathfinder?.goals;
+              if (!pg) { console.warn('[ScriptRunner] Pathfinder goals not available'); return; }
               this.bot.pathfinder.setGoal(new pg.GoalNear(goalPos.x, goalPos.y, goalPos.z, 3));
               console.log(`[ScriptRunner] Pathing to water at (${goalPos.x.toFixed(1)}, ${goalPos.y.toFixed(1)}, ${goalPos.z.toFixed(1)})`);
               await this._wait(8000); // Give pathfinder time to navigate
