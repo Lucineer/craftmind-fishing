@@ -139,41 +139,44 @@ export class ResilientController {
   }
 
   /**
-   * Handle stuck bot
+   * Handle stuck bot — teleport back to dock via RCON
    */
   async handleStuck() {
     this.runner.interrupt?.();
     
-    // Try Moondream for guidance
+    // Teleport bot back to fishing dock via RCON
+    const port = this.bot._client?.options?.port || 25566;
+    const rconPort = port + 10000;
+    const username = this.bot.username || 'Cody';
+    
     try {
-      const insight = await this.vision.analyzeLocal(
-        'The bot is stuck. What should it do to get to water and start fishing?',
-        this.vision.captureScene()
-      );
-      if (insight) {
-        console.log(`[Resilient] Moondream says: ${insight}`);
-      }
-    } catch {}
-
-    // Walk toward origin (dock area) as fallback
-    const pos = this.bot.entity?.position;
-    if (pos) {
-      const dx = -pos.x;
-      const dz = -pos.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist > 2) {
-        this.bot.setControlState('forward', true);
-        this.bot.lookAt(this.bot.entity.position.offset(dx / dist, 0, dz / dist));
-        // Stop after moving toward dock
-        setTimeout(() => {
-          this.bot.setControlState('forward', false);
-          // Restart script after unstuck
-          this.startFallbackScript();
-        }, 5000);
-      } else {
-        this.startFallbackScript();
+      const { Rcon } = await import('rcon-client');
+      const rcon = await Rcon.connect({ host: 'localhost', port: rconPort, password: 'fishing42' });
+      await rcon.send(`tp ${username} 100 65 100`);
+      console.log(`[Resilient] Teleported ${username} to dock (100,65,100) via RCON`);
+      await rcon.end();
+    } catch (err) {
+      console.warn(`[Resilient] RCON teleport failed: ${err.message}, trying walk fallback`);
+      // Walk toward dock area as fallback
+      const pos = this.bot.entity?.position;
+      if (pos) {
+        const dx = 100 - pos.x;
+        const dz = 100 - pos.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist > 2) {
+          this.bot.setControlState('forward', true);
+          this.bot.lookAt(this.bot.entity.position.offset(dx / dist, 0, dz / dist));
+          setTimeout(() => {
+            this.bot.setControlState('forward', false);
+            this.startFallbackScript();
+          }, 5000);
+          return;
+        }
       }
     }
+
+    // Wait for teleport to settle, then restart fishing
+    setTimeout(() => this.startFallbackScript(), 2000);
   }
 
   /**

@@ -18,7 +18,7 @@ const SERVERS = [
 ];
 
 const RCON_PASSWORD = 'fishing42';
-const PLUGIN = '../craftmind-fishing/src/mineflayer/fishing-plugin.js';
+const PLUGIN = '/home/lucineer/projects/craftmind-fishing/src/mineflayer/fishing-plugin.js';
 const CHECK_INTERVAL = 60000;
 const ROD_GIVE_DELAY = 20000; // 20s after bot start (enough time to fully spawn)
 
@@ -75,7 +75,7 @@ function startBot(server) {
   } catch {}
   
   const escapedBot = server.bot.replace(/'/g, "'\\''");
-  const innerCmd = `cd /home/lucineer/projects/craftmind && source .env && node --unhandled-rejections=warn src/bot.js localhost ${server.port} ${escapedBot} --plugin ${PLUGIN}`;
+  const innerCmd = `cd /home/lucineer/projects/craftmind && SERVER_PORT=${server.port} RCON_PORT=${server.rcon} RCON_PASSWORD=${RCON_PASSWORD} node --unhandled-rejections=warn src/bot.js localhost ${server.port} ${escapedBot} --plugin ${PLUGIN}`;
   const cmd = `nohup bash -c '${innerCmd}' > /tmp/bot-${server.port}.log 2>&1 &`;
   
   try {
