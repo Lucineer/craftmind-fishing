@@ -546,6 +546,18 @@ const fishingCommands = [
       console.log(`[ChatCommand] !chattiness ${chatVal} by ${ctx.username || 'unknown'}`);
     },
   },
+  {
+    name: 'help',
+    description: 'Show available commands',
+    usage: '!help',
+    execute(ctx) {
+      const commands = fishingCommands.map(cmd => {
+        const aliases = cmd.aliases ? ` (${cmd.aliases.join(', ')})` : '';
+        return `${cmd.name}${aliases}: ${cmd.description}`;
+      }).join(' | ');
+      ctx.reply(`🎣 Fishing Commands: ${commands}`);
+    },
+  },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -936,6 +948,30 @@ const fishingPlugin = {
       ctx.bot.on('kicked', (reason) => {
         console.warn('[FishingPlugin] Kicked:', reason);
         process.exit(1);
+      });
+
+      // Player welcome handler - greet human players when they join
+      const playersWelcomed = new Set();
+      ctx.bot.on('playerJoined', (player) => {
+        // Only greet human players (not the bot itself)
+        if (player.username === ctx.bot?.username) return;
+
+        // Only greet each player once
+        if (playersWelcomed.has(player.username)) return;
+        playersWelcomed.add(player.username);
+
+        console.log(`[FishingPlugin] Player joined: ${player.username}`);
+
+        // 3-second delay before greeting
+        setTimeout(() => {
+          const personalityMessages = [
+            `Hey ${player.username}! Welcome to the fishing grounds. Try !help for commands.`,
+            `Welcome aboard, ${player.username}! Use !help to see what I can do.`,
+            `Good to see you, ${player.username}! Type !help to get started.`
+          ];
+          const greeting = personalityMessages[Math.floor(Math.random() * personalityMessages.length)];
+          ctx.bot?.chat(greeting);
+        }, 3000);
       });
     }
 
