@@ -35,8 +35,8 @@ function isProcessRunning(pattern) {
 
 function isBotRunning(port) {
   try {
-    // Match the actual node process, not shell wrappers or night-shift itself
-    const out = execSync(`pgrep -af "node.*src/bot.js.*${port}"`, { encoding: 'utf8' }).trim();
+    // Match the actual node process, not shell wrappers or pgrep itself
+    const out = execSync(`pgrep -af "node.*src/bot.js.*${port}" | grep -v pgrep`, { encoding: 'utf8' }).trim();
     return out.length > 0;
   } catch { return false; }
 }
