@@ -1,22 +1,39 @@
 /**
  * Stochastic Script Engine for Cody
- * 
+ *
  * Instead of behavior trees, Cody runs SCRIPTS with weighted random choices
  * at strategic points. This creates natural variation without LLM calls.
- * 
+ *
+ * MODES:
+ * 1. Flat Mode (default): Traditional linear step sequences
+ * 2. Tree Mode: Hierarchical skill trees with preconditions/postconditions
+ *
  * Usage:
+ *   // Flat mode
  *   const script = Script.define('fish', [
  *     Step.action('equip_rod', () => bot.equip(rod, 'hand')),
  *     Step.chat({ 0.5: 'Lines in.', 0.3: '*casts*', 0.2: null }),
  *     Step.fish(),
- *     Step.branch(
- *       () => caughtFish,
- *       Step.chat({ 0.6: 'Got one!', 0.4: 'Nice.' }),
- *       Step.chat({ 0.5: 'Nothing.', 0.3: 'Patience.', 0.2: null })
- *     ),
  *   ]);
  *   runner.run(script);
+ *
+ *   // Tree mode
+ *   const treeScript = Script.define('fish', {
+ *     tree: {
+ *       root: 'master_fisher',
+ *       nodes: {
+ *         'master_fisher': { children: ['equip_and_position', 'fishing_session'] },
+ *         'equip_and_position': { steps: [{type:'equip_rod'}, {type:'move_to_water'}] },
+ *         'fishing_session': { children: ['cast_and_wait', 'reel_and_process'] },
+ *         'cast_and_wait': { steps: [{type:'fish'}, {type:'wait', ms:3000}] },
+ *         'reel_and_process': { steps: [{type:'chat', pick:()=>'Nice catch!'}] }
+ *       }
+ *     }
+ *   });
+ *   runner.run(treeScript);
  */
+
+import { SkillTree, createSkillTree } from './skill-tree.js';
 
 export function weightedRandom(weights) {
   // Weights as Map or object. Keys are cumulative probabilities, values are outcomes.
@@ -134,11 +151,20 @@ export class ScriptRunner {
       currentScript: null,
       interrupted: false,
       combatCooldown: 0,
+      // Tree mode context
+      has_rod: false,
+      ready_to_fish: false,
+      hooked_fish: false,
+      at_water: false,
     };
     this._running = false;
     this._currentScript = null;
     this._isFishing = false;
     this._tickInterval = null;
+    // Tree mode support
+    this._skillTree = null;
+    this._treeMode = false;
+    this._treeLoopInterval = null;
 
     // Built-in action handlers (for step.exec strings)
     this.actions = {
@@ -209,18 +235,117 @@ export class ScriptRunner {
     this._currentScript = script;
     this.context.currentScript = script.name;
     this._running = true;
-    console.log(`[ScriptRunner] ▶ Running: ${script.name} (${script.steps?.length || 0} steps)`);
 
+    // Check if script uses tree mode
+    if (script.tree) {
+      this._treeMode = true;
+      console.log(`[ScriptRunner] 🌳 Running in TREE mode: ${script.name}`);
+      await this._runTreeMode(script);
+    } else {
+      this._treeMode = false;
+      console.log(`[ScriptRunner] ▶ Running in FLAT mode: ${script.name} (${script.steps?.length || 0} steps)`);
+      try {
+        await this._executeSteps(script.steps);
+      } catch (err) {
+        if (err.message !== 'INTERRUPTED') {
+          console.error(`[ScriptRunner] Error in ${script.name}:`, err.message);
+        }
+      } finally {
+        this._currentScript = null;
+        this.context.currentScript = null;
+        this._running = false;
+      }
+    }
+  }
+
+  /**
+   * Run script in tree mode (hierarchical skill execution)
+   * @private
+   */
+  async _runTreeMode(script) {
     try {
-      await this._executeSteps(script.steps);
+      // Create skill tree from script
+      this._skillTree = createSkillTree(this.bot.username, script);
+
+      console.log(`[SkillTree] ${this._skillTree.toASCII()}`);
+
+      // Start the tree loop
+      this._startTreeLoop();
+
     } catch (err) {
       if (err.message !== 'INTERRUPTED') {
-        console.error(`[ScriptRunner] Error in ${script.name}:`, err.message);
+        console.error(`[ScriptRunner] Tree mode error in ${script.name}:`, err.message);
       }
     } finally {
       this._currentScript = null;
       this.context.currentScript = null;
       this._running = false;
+      this._treeMode = false;
+    }
+  }
+
+  /**
+   * Start the tree execution loop
+   * @private
+   */
+  _startTreeLoop() {
+    if (this._treeLoopInterval) {
+      clearInterval(this._treeLoopInterval);
+    }
+
+    this._treeLoopInterval = setInterval(async () => {
+      if (!this._running || !this._skillTree) {
+        clearInterval(this._treeLoopInterval);
+        return;
+      }
+
+      // Check if tree is complete
+      if (this._skillTree.isComplete()) {
+        console.log('[SkillTree] 🌳 Tree execution complete! Restarting...');
+        this._skillTree.reset();
+        this._skillTree.start(this._skillTree.root.name);
+        return;
+      }
+
+      // Get next step to execute
+      const step = this._skillTree.advance();
+
+      if (!step) {
+        // No current step - waiting for children or tree complete
+        return;
+      }
+
+      // Execute the step
+      try {
+        await this._executeStep(step);
+
+        // Mark step as completed
+        this._skillTree.completeStep(true);
+
+        // Check if node is complete
+        const currentNode = this._skillTree.currentNode;
+        if (currentNode && currentNode.currentStepIndex >= currentNode.steps.length) {
+          this._skillTree.completeNode(true, 'All steps executed');
+        }
+
+      } catch (err) {
+        if (err.message === 'INTERRUPTED') {
+          this._skillTree.completeNode(false, 'Interrupted');
+        } else {
+          console.error(`[SkillTree] Step execution error:`, err.message);
+          this._skillTree.completeStep(false);
+        }
+      }
+    }, 1000); // Check every second
+  }
+
+  /**
+   * Stop tree execution loop
+   */
+  _stopTreeLoop() {
+    if (this._treeLoopInterval) {
+      clearInterval(this._treeLoopInterval);
+      this._treeLoopInterval = null;
     }
   }
 
@@ -228,6 +353,14 @@ export class ScriptRunner {
     this._running = false;
     this.context.interrupted = true;
     this.context.interruptedReason = reason;
+
+    // Stop tree loop if running
+    if (this._treeMode) {
+      this._stopTreeLoop();
+      if (this._skillTree?.currentNode) {
+        this._skillTree.completeNode(false, `Interrupted: ${reason}`);
+      }
+    }
   }
 
   get isRunning() {
@@ -257,6 +390,8 @@ export class ScriptRunner {
       clearInterval(this._tickInterval);
       this._tickInterval = null;
     }
+    // Also stop tree loop
+    this._stopTreeLoop();
   }
 
   _pickNextScript() {
@@ -716,5 +851,41 @@ export class ScriptRunner {
 
     const chat = transitionChat || 'Alright, switching it up.';
     await this.switchScript(name, chat);
+  }
+
+  // ── Tree Mode Methods ─────────────────────────────────────
+
+  /**
+   * Check if currently running in tree mode
+   */
+  isTreeMode() {
+    return this._treeMode && this._skillTree !== null;
+  }
+
+  /**
+   * Get skill tree status for display
+   * @returns {Object|null} Tree status or null if not in tree mode
+   */
+  getTreeStatus() {
+    if (!this._skillTree) return null;
+    return this._skillTree.getStatus();
+  }
+
+  /**
+   * Get skill tree status formatted for chat
+   * @returns {string} Formatted status message
+   */
+  getTreeStatusMessage() {
+    if (!this._skillTree) return 'Not in tree mode';
+    return this._skillTree.getStatusMessage();
+  }
+
+  /**
+   * Get skill tree ASCII representation
+   * @returns {string} ASCII tree diagram
+   */
+  getTreeASCII() {
+    if (!this._skillTree) return 'No active skill tree';
+    return this._skillTree.toASCII();
   }
 }

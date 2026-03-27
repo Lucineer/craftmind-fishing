@@ -617,6 +617,32 @@ const fishingCommands = [
       ctx.reply(`🎣 Fishing Commands: ${commands}`);
     },
   },
+  {
+    name: 'skilltree',
+    description: 'Show skill tree status (tree mode only)',
+    usage: '!skilltree [ascii]',
+    aliases: ['tree', 'st'],
+    execute(ctx, arg) {
+      const runner = ctx._scriptRunner;
+      if (!runner) return ctx.reply('Script runner not initialized.');
+
+      if (!runner.isTreeMode()) {
+        return ctx.reply('Not in tree mode. Use !script to switch to a tree-mode script.');
+      }
+
+      if (arg === 'ascii') {
+        // Show ASCII tree representation
+        const ascii = runner.getTreeASCII();
+        ctx.reply(`🌳 Skill Tree:\n${ascii}`);
+      } else {
+        // Show status summary
+        const status = runner.getTreeStatusMessage();
+        ctx.reply(status);
+      }
+
+      console.log(`[ChatCommand] !skilltree by ${ctx.username || 'unknown'}`);
+    },
+  },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
