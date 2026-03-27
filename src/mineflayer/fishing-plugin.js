@@ -1248,6 +1248,7 @@ const fishingPlugin = {
       setTimeout(async () => {
         try {
           await giveSupplies(rconPort, ctx.bot?.username || '@p');
+          await rconTeleport(rconPort, ctx.bot?.username || '@p', 100, 66, 97);
           if (ctx._equipper) setTimeout(() => ctx._equipper.equipAll(), 2000);
         } catch (e) {
           console.warn('[FishingPlugin] RCON supply failed:', e.message);
@@ -1619,7 +1620,7 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
             } else if (stuckInfo.level === 3) {
               // Level 3: TP to safe spawn, reset counter
               console.log('[StuckDetector] Recovery Level 3: TP to safe spawn + full reset');
-              await rconTeleport(rconPort, ctx.bot?.username || '@p', 0, 64, 0);
+              await rconTeleport(rconPort, ctx.bot?.username || '@p', 100, 66, 97);
 
               stuckDetector.reset();
               scriptRunner?.loadRandomScript?.();
