@@ -43,6 +43,33 @@ function isBotRunning(botName) {
 }
 
 /**
+ * Check if bot is actually in the server via RCON 'list' command
+ * This detects zombie bots (process running but disconnected from server)
+ */
+async function isBotInServer(botName, rconPort) {
+  try {
+    const req = createRequire(__filename);
+    const { Rcon } = req('/home/lucineer/projects/craftmind/node_modules/rcon-client');
+
+    const rcon = await Rcon.connect({
+      host: 'localhost',
+      port: rconPort,
+      password: RCON_PASSWORD
+    });
+
+    const response = await rcon.send('list');
+    await rcon.end();
+
+    // RCON list response format: "There are X players online: player1, player2, ..."
+    // Check if botName is in the list
+    return response.toLowerCase().includes(botName.toLowerCase());
+  } catch (error) {
+    log(`❌ ${botName}: RCON check failed - ${error.message}`);
+    return false; // Assume not in server if RCON fails
+  }
+}
+
+/**
  * Give supplies via RCON (fishing rod and bread)
  */
 async function giveSupplies(botName, rconPort) {
@@ -93,9 +120,23 @@ function startBot(botName, port) {
 }
 
 /**
+ * Kill a bot process by name
+ */
+function killBot(botName) {
+  try {
+    const pattern = `node src/bot.js localhost.*${botName}`;
+    execSync(`pkill -f "${pattern}"`, { encoding: 'utf8' });
+    log(`🔪 ${botName}: killed zombie process`);
+  } catch (error) {
+    // pkill returns non-zero when no processes found - that's ok
+    log(`⚠️ ${botName}: no process to kill`);
+  }
+}
+
+/**
  * Main health check loop
  */
-function healthCheck() {
+async function healthCheck() {
   log('🔍 Checking bot health...');
 
   for (const bot of BOTS) {
@@ -105,7 +146,19 @@ function healthCheck() {
       log(`⚠️ ${bot.name}: bot not running, restarting...`);
       startBot(bot.name, bot.port);
     } else {
-      log(`✅ ${bot.name}: running`);
+      // Process is running, but check if actually in server (zombie check)
+      const rconPort = bot.port + 10000;
+      const isInServer = await isBotInServer(bot.name, rconPort);
+
+      if (!isInServer) {
+        log(`🧟 ${bot.name}: zombie detected (process running but not in server), killing and restarting...`);
+        killBot(bot.name);
+        // Wait a moment for process to die
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        startBot(bot.name, bot.port);
+      } else {
+        log(`✅ ${bot.name}: running and in server`);
+      }
     }
   }
 }

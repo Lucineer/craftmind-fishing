@@ -191,6 +191,7 @@ export class ScriptRunner {
 
   register(script) {
     this.scripts.set(script.name, script);
+    console.log(`[ScriptRunner] ✅ Registered script: ${script.name} (${script.steps?.length || 0} steps)`);
     return this;
   }
 
@@ -287,6 +288,7 @@ export class ScriptRunner {
       for (const c of choices) {
         roll -= c.w;
         if (roll <= 0) {
+          console.log(`[ScriptRunner] 🎲 Auto-picked script: ${c.script} (energy: ${this.mood.energy.toFixed(2)}, players: ${this.context.playersSeen.size})`);
           this.run(c.script);
           return;
         }
@@ -294,9 +296,10 @@ export class ScriptRunner {
     }
 
     // Fallback: try the legacy script names if they exist
-    const fallback = this.scripts.has('afternoon_fish') ? 'afternoon_fish' : 
+    const fallback = this.scripts.has('afternoon_fish') ? 'afternoon_fish' :
                      [...this.scripts.keys()][0] || null;
     if (fallback) {
+      console.log(`[ScriptRunner] 🔄 Fallback to script: ${fallback}`);
       this.run(fallback);
     }
   }
@@ -312,6 +315,11 @@ export class ScriptRunner {
 
   async _executeStep(step) {
     if (!this._running) throw new Error('INTERRUPTED');
+
+    // Debug logging for step execution
+    if (process.env.DEBUG_SCRIPTS || step.type === 'fish') {
+      console.log(`[ScriptRunner] 🔧 Executing step: ${step.type}${step.name ? ` (${step.name})` : ''}${step.scriptName ? ` -> ${step.scriptName}` : ''}`);
+    }
 
     switch (step.type) {
       case 'action':

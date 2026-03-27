@@ -921,6 +921,24 @@ const fishingPlugin = {
   provides: ['fishing', 'game-engine', 'ai-behavior'],
 
   async load(ctx) {
+    // CRITICAL: Register disconnect handlers BEFORE any awaits.
+    // This ensures we detect zombie bots (process alive but disconnected from server).
+    if (ctx.bot) {
+      ctx.bot.on('end', () => {
+        console.log('[FishingPlugin] Bot ended, exiting process for restart');
+        setTimeout(() => process.exit(1), 100); // Force exit after reconnect handler runs
+        process.exit(1); // Try immediate exit first
+      });
+      ctx.bot.on('error', (err) => {
+        console.error('[FishingPlugin] Bot error:', err.message);
+        setTimeout(() => process.exit(1), 5000); // Exit after 5s if error isn't recovered
+      });
+      ctx.bot.on('kicked', (reason) => {
+        console.warn('[FishingPlugin] Kicked:', reason);
+        process.exit(1);
+      });
+    }
+
     // CRITICAL: Register SPAWN handler BEFORE any awaits.
     // The bot framework calls plugin.load() without await, then immediately
     // fires SPAWN. Any handler registered after the first await will miss it.
