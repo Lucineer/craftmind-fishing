@@ -1247,13 +1247,24 @@ const fishingPlugin = {
       }
       setTimeout(async () => {
         try {
-          await giveSupplies(rconPort, ctx.bot?.username || '@p');
-          await rconTeleport(rconPort, ctx.bot?.username || '@p', 100, 66, 97);
+          const name = ctx.bot?.username || '@p';
+          await giveSupplies(rconPort, name);
+          // Retry teleport multiple times — bot may not be fully registered yet
+          for (let i = 0; i < 3; i++) {
+            try {
+              await rconTeleport(rconPort, name, 100, 66, 97);
+              console.log(`[FishingPlugin] Teleported ${name} to dock (attempt ${i+1})`);
+              break;
+            } catch (tpErr) {
+              console.warn(`[FishingPlugin] TP attempt ${i+1} failed: ${tpErr.message}`);
+              await new Promise(r => setTimeout(r, 3000));
+            }
+          }
           if (ctx._equipper) setTimeout(() => ctx._equipper.equipAll(), 2000);
         } catch (e) {
           console.warn('[FishingPlugin] RCON supply failed:', e.message);
         }
-      }, 5000);
+      }, 8000);
     });
 
     // Create the game engine instance
