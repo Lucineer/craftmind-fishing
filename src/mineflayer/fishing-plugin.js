@@ -1021,7 +1021,7 @@ const fishingPlugin = {
       const { WorldBuilder } = await import('./world-builder.js');
       const wb = new WorldBuilder(
         process.env.RCON_HOST || 'localhost',
-        parseInt(process.env.RCON_PORT || '25575', 10),
+        parseInt(process.env.RCON_PORT || String(rconPort), 10),
         process.env.RCON_PASSWORD || 'craftmind'
       );
       await wb.connect();
