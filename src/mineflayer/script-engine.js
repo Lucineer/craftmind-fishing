@@ -510,6 +510,15 @@ export class ScriptRunner {
           this._isFishing = true;
           // Equip fishing rod (gather + craft if missing)
           let rod = this.bot.inventory.items().find(i => i.name.includes('fishing_rod'));
+
+          // Debug: Log inventory to help diagnose stuck bots
+          if (!rod) {
+            // Force inventory refresh and check again
+            await this.bot.waitForItemsToUpdate();
+            rod = this.bot.inventory.items().find(i => i.name.includes('fishing_rod'));
+            console.warn(`[ScriptRunner] No fishing rod found! Inventory: ${this.bot.inventory.items().map(i => i.name).join(', ')}`);
+          }
+
           if (!rod) {
             // Throttle: only try every 30s to avoid log spam
             const now = Date.now();

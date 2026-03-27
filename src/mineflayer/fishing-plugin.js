@@ -52,6 +52,12 @@ function getGoals(ctx) {
   return _goals;
 }
 
+// ── Cross-Game Systems ─────────────────────────────────────────────────────────────
+// Economy, Identity, and Achievement systems for cross-game progression
+const { GameEconomy } = _require('/home/lucineer/projects/craftmind/src/economy/index.js');
+const { BotIdentity } = _require('/home/lucineer/projects/craftmind/src/identity/index.js');
+const { AchievementChecker } = _require('/home/lucineer/projects/craftmind/src/achievements/cross-game.js');
+
 // ── Fishing commands ──────────────────────────────────────────────────────────
 
 const fishingCommands = [
@@ -458,13 +464,17 @@ const fishingCommands = [
       // Get fish count
       const fishCount = ai?.memory?.working?.fishCount || game?.player?.statistics?.totalFishCaught || 0;
 
+      // Get balance from economy
+      const balance = ctx._economy ? ctx._economy.getBalance(bot?.username || 'Cody') : null;
+
       const lines = [
         `🤖 Bot: ${bot?.username || 'Unknown'}`,
         `📊 Mood: E${moodValues.energy} H${moodValues.happiness} S${moodValues.satisfaction} F${moodValues.frustration}`,
         `⚡ Energy: ${moodValues.energy} | 💬 Chattiness: ${moodValues.chattiness} | 🏃 Speed: ${moodValues.speed}`,
         `🎣 Script: ${scriptRunner?.currentScript || 'none'} | 🐟 Fish: ${fishCount}`,
+        balance !== null ? `💰 Balance: $${balance}` : '',
         `⏱ Uptime: ${uptime}`,
-      ];
+      ].filter(Boolean); // Remove empty strings
 
       ctx.reply(lines.join(' | '));
 
@@ -641,6 +651,82 @@ const fishingCommands = [
       }
 
       console.log(`[ChatCommand] !skilltree by ${ctx.username || 'unknown'}`);
+    },
+  },
+  {
+    name: 'balance',
+    description: 'Show bot currency balance and earnings breakdown',
+    usage: '!balance',
+    execute(ctx) {
+      const economy = ctx._economy;
+      if (!economy) return ctx.reply('Economy system not available.');
+
+      const botName = ctx.bot?.username || 'Cody';
+      const balance = economy.getBalance(botName);
+      const earnings = economy.getEarningsBreakdown(botName);
+      const rank = economy.getRank(botName);
+      const leaderboard = economy.getLeaderboard(5);
+
+      const lines = [
+        `💰 Balance: $${balance}`,
+        `📊 Rank: #${rank > 0 ? rank : 'N/A'}`,
+        `📈 Earnings: ${Object.entries(earnings).map(([k, v]) => `${k}:${v}`).join(', ')}`,
+        `🏆 Top: ${leaderboard.slice(0, 3).map((e, i) => `${i + 1}. ${e.bot} ($${e.balance})`).join(', ')}`,
+      ];
+
+      ctx.reply(lines.join(' | '));
+      console.log(`[ChatCommand] !balance by ${ctx.username || 'unknown'} - $${balance}`);
+    },
+  },
+  {
+    name: 'achievements',
+    description: 'Show bot achievements and progress',
+    usage: '!achievements',
+    execute(ctx) {
+      const checker = ctx._achievementChecker;
+      const identity = ctx._identity;
+      if (!checker || !identity) return ctx.reply('Achievement system not available.');
+
+      const unlocked = checker.getUnlockedAchievements(identity);
+      const locked = checker.getLockedAchievements(identity);
+      const progress = checker.getProgress(identity);
+      const totalReward = checker.getTotalReward(identity);
+
+      const lines = [
+        `🏆 Achievements: ${progress}% (${unlocked.length}/${unlocked.length + locked.length})`,
+        `💰 Total Rewards: $${totalReward}`,
+        `🔓 Recent: ${unlocked.slice(-3).map(a => `${a.icon}${a.name}`).join(', ') || 'none'}`,
+        `🔒 Next: ${locked.slice(0, 3).map(a => `${a.icon}${a.name}`).join(', ') || 'all complete!'}`,
+      ];
+
+      ctx.reply(lines.join(' | '));
+      console.log(`[ChatCommand] !achievements by ${ctx.username || 'unknown'} - ${progress}%`);
+    },
+  },
+  {
+    name: 'restart',
+    description: 'Restart the bot script engine (admin only)',
+    usage: '!restart',
+    execute(ctx) {
+      // Simple admin check - only allow from certain usernames or if no players nearby
+      const allowedAdmins = process.env.FISHING_ADMIN?.split(',') || [];
+      const username = ctx.username || 'unknown';
+
+      if (allowedAdmins.length > 0 && !allowedAdmins.includes(username)) {
+        return ctx.reply('Only admins can restart the bot.');
+      }
+
+      const scriptRunner = ctx._scriptRunner;
+      if (!scriptRunner) return ctx.reply('Script runner not available.');
+
+      // Interrupt current script and restart auto-run
+      scriptRunner.interrupt('restart');
+      setTimeout(() => {
+        scriptRunner.startAutoRun(1000);
+      }, 500);
+
+      ctx.reply('🔄 Restarting script engine...');
+      console.log(`[ChatCommand] !restart by ${username}`);
     },
   },
 ];
@@ -1331,6 +1417,26 @@ const fishingPlugin = {
       console.warn('[FishingPlugin] MinecraftFishing init failed (non-fatal):', err.message);
     }
 
+    // ── Initialize Cross-Game Systems ─────────────────────────
+    // Economy system for currency rewards
+    const serverPort = parseInt(process.env.SERVER_PORT || ctx.bot?.options?.port || '25565');
+    const economy = new GameEconomy(serverPort, '/tmp');
+    await economy.load();
+    ctx._economy = economy;
+    console.log('[FishingPlugin] Cross-game economy system loaded');
+
+    // Identity system for personality tracking
+    const botName = ctx.bot?.username || 'Cody';
+    const identity = new BotIdentity(botName, '/tmp');
+    await identity.load();
+    ctx._identity = identity;
+    console.log('[FishingPlugin] Cross-game identity system loaded');
+
+    // Achievement system for milestone tracking
+    const achievementChecker = new AchievementChecker();
+    ctx._achievementChecker = achievementChecker;
+    console.log('[FishingPlugin] Cross-game achievement system loaded');
+
     // Create Actions instance for real mineflayer movements
     let actions = null;
     if (ctx.bot) {
@@ -1529,6 +1635,57 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
         console.log(`[FishingPlugin] Using registry scripts only (${registryScripts.length} loaded)`);
       }
 
+      // ── Cross-Game Integration Hook ─────────────────────────────
+      // Hook into script runner's playerCollect event to award currency, track identity, and check achievements
+      ctx.bot.on('playerCollect', (collector, entity) => {
+        if (collector.username === ctx.bot?.username && ctx._economy && ctx._identity && ctx._achievementChecker) {
+          // Award currency for fish catch (1 per fish, 5 for rare fish)
+          const isRare = entity?.name?.includes('salmon') || entity?.name?.includes('tropical');
+          const currencyAmount = isRare ? 5 : 1;
+          const botName = ctx.bot?.username || 'Cody';
+          ctx._economy.addCurrency(botName, currencyAmount, 'fishing:base');
+          console.log(`[CrossGame] Awarded ${currencyAmount} currency to ${botName} for catching ${entity?.name || 'fish'}`);
+
+          // Track identity stats
+          ctx._identity.recordAction('fishing', 'catch_fish', 'success');
+          ctx._identity.incrementCustomStat('fishing', 'fish_caught', 1);
+          ctx._identity.addTrait('patience', Math.min(1, ctx._identity.getTrait('patience') + 0.001)); // Slowly increase patience
+          ctx._identity.addTrait('endurance', Math.min(1, ctx._identity.getTrait('endurance') + 0.001)); // Slowly increase endurance
+
+          // Check for cross-game achievements
+          const newlyUnlocked = ctx._achievementChecker.check(ctx._identity);
+          if (newlyUnlocked.length > 0) {
+            for (const achievement of newlyUnlocked) {
+              console.log(`[CrossGame] 🏆 Achievement Unlocked: ${achievement.icon} ${achievement.name}`);
+              ctx.bot?.chat(`🏆 Achievement Unlocked: ${achievement.icon} ${achievement.name}!`);
+
+              // Award achievement reward currency
+              if (achievement.reward) {
+                ctx._economy.addCurrency(botName, achievement.reward, 'achievement:unlock');
+                console.log(`[CrossGame] Awarded ${achievement.reward} currency for achievement ${achievement.id}`);
+              }
+            }
+            // Save identity with new achievements
+            ctx._identity.save();
+          }
+
+          // Check for fishing-specific milestones
+          const fishCaught = ctx._identity.getCustomStat('fishing', 'fish_caught') || 0;
+          if (fishCaught >= 500 && !ctx._identity.hasAchievement('master_angler')) {
+            // This should be caught by the achievement checker, but let's double-check
+            console.log(`[CrossGame] Milestone: ${fishCaught} fish caught!`);
+          }
+        }
+      });
+
+      // Save identity and economy every 60 seconds
+      setInterval(() => {
+        if (ctx._identity) ctx._identity.save();
+        if (ctx._economy) ctx._economy.save();
+      }, 60000);
+
+      console.log('[FishingPlugin] Cross-game integration hooks active');
+
       // Start auto-run after 8 seconds (let BT handle initial survival setup)
       setTimeout(() => {
         if (ctx.bot?.entity) {
@@ -1649,8 +1806,9 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
 
     // ── Telemetry Bridge (write stats every 60s) ────────────
     // Detect server from env (set by startup script) or bot options
-    const serverPort = parseInt(process.env.SERVER_PORT) || ctx.bot?.options?.port || 0;
-    const serverName = serverPort === 25566 ? 'Alpha' : serverPort === 25567 ? 'Beta' : serverPort === 25568 ? 'Gamma' : `port${serverPort}`;
+    // Reuse serverPort from cross-game systems init above
+    const telemetryPort = serverPort; // Use the serverPort from cross-game systems
+    const serverName = telemetryPort === 25566 ? 'Alpha' : telemetryPort === 25567 ? 'Beta' : telemetryPort === 25568 ? 'Gamma' : `port${telemetryPort}`;
     const telemetryLoop = setInterval(() => {
       if (!ctx.bot?.entity) return;
       const stats = {
