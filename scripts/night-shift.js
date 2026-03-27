@@ -33,6 +33,14 @@ function isProcessRunning(pattern) {
   } catch { return false; }
 }
 
+function isBotRunning(port) {
+  try {
+    // Match the actual node process, not shell wrappers or night-shift itself
+    const out = execSync(`pgrep -af "node.*src/bot.js.*${port}"`, { encoding: 'utf8' }).trim();
+    return out.length > 0;
+  } catch { return false; }
+}
+
 function isServerAlive(port) {
   try {
     execSync(`nc -z localhost ${port} -w 2`, { timeout: 3000 });
@@ -71,7 +79,7 @@ async function giveSupplies(server) {
 function startBot(server) {
   // Kill any existing bot on this port first
   try {
-    execSync(`pkill -f "bot.js.*${server.port}" 2>/dev/null`, { shell: '/bin/bash' });
+    execSync(`pkill -f "src/bot.js.*${server.port}" 2>/dev/null`, { shell: '/bin/bash' });
   } catch {}
   
   const escapedBot = server.bot.replace(/'/g, "'\\''");
@@ -121,7 +129,7 @@ function restartServer(server) {
 function healthCheck() {
   for (const server of SERVERS) {
     const serverAlive = isServerAlive(server.port);
-    const botRunning = isProcessRunning(`bot.js.*${server.port}`);
+    const botRunning = isBotRunning(server.port);
 
     if (!serverAlive) {
       log(`⚠️ Server ${server.port}: DOWN`);
