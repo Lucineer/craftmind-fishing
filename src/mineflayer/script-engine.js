@@ -515,7 +515,7 @@ export class ScriptRunner {
 
           if (!rod) {
             // Force inventory refresh and check again
-            await this.bot.waitForItemsToUpdate();
+            await new Promise(r => setTimeout(r, 500));
             rod = this.bot.inventory.items().find(i => i.name.includes('fishing_rod'));
           }
 
@@ -556,8 +556,12 @@ export class ScriptRunner {
             break;
           }
 
-          // Look at water before casting
-          this.bot.lookAt(waterBlock.position);
+          // Look forward toward water — bot.fish() casts the rod in the look direction
+          // Don't look at the water block directly, just look slightly downward toward water surface
+          this.bot.look(
+            this.bot.entity.yaw,
+            Math.PI / 6, // Look ~30 degrees down toward water surface
+          );
           await this._wait(500); // Brief pause for look to take effect
 
           if (!this._running) throw new Error('INTERRUPTED');
@@ -580,7 +584,7 @@ export class ScriptRunner {
           await Promise.race([fishPromise, timeoutPromise]);
 
           // Check inventory AFTER fishing to see if a fish was actually caught
-          await this.bot.waitForItemsToUpdate();
+          await new Promise(r => setTimeout(r, 500));
           const fishAfter = countFishItems();
           const fishCaught = fishAfter - fishBefore;
 

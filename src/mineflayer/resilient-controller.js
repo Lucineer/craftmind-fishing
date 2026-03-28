@@ -164,7 +164,7 @@ export class ResilientController {
       });
 
       // Teleport to dock coordinates (should have water nearby)
-      await rcon.send(`tp ${username} 100 65 100`);
+      await rcon.send(`tp @a 100 65 100`);
       console.log(`[Resilient] Teleported ${username} to dock (100,65,100) via RCON port ${rconPort}`);
 
       // Give supplies in case bot lost them
