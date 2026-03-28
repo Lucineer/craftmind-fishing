@@ -140,65 +140,116 @@ export class ResilientController {
 
   /**
    * Handle stuck bot — teleport back to dock via RCON
+   * Uses standard RCON port calculation: serverPort + 10000
    */
   async handleStuck() {
     this.runner.interrupt?.();
-    
-    // Teleport bot back to fishing dock via RCON
-    const port = this.bot._client?.options?.port || 25566;
-    const rconPort = port + 10000;
+
+    // Get RCON port from bot's server port (or use env var)
+    const serverPort = this.bot._client?.options?.port || parseInt(process.env.RCON_PORT || '35566');
+    // RCON port is serverPort + 10000 (e.g., 25566 -> 35566)
+    // But if serverPort looks like an RCON port already (35xxx), use it directly
+    const rconPort = serverPort >= 35000 ? serverPort : serverPort + 10000;
     const username = this.bot.username || 'Cody';
-    
+
     try {
-      const { Rcon } = await import('rcon-client');
-      const rcon = await Rcon.connect({ host: 'localhost', port: rconPort, password: 'fishing42' });
+      const { createRequire } = await import('node:module');
+      const req = createRequire(import.meta.url);
+      const { Rcon } = req('rcon-client');
+
+      const rcon = await Rcon.connect({
+        host: 'localhost',
+        port: rconPort,
+        password: process.env.RCON_PASSWORD || 'fishing42'
+      });
+
+      // Teleport to dock coordinates (should have water nearby)
       await rcon.send(`tp ${username} 100 65 100`);
-      console.log(`[Resilient] Teleported ${username} to dock (100,65,100) via RCON`);
+      console.log(`[Resilient] Teleported ${username} to dock (100,65,100) via RCON port ${rconPort}`);
+
+      // Give supplies in case bot lost them
+      await rcon.send(`give ${username} fishing_rod 3`);
+      await rcon.send(`give ${username} bread 32`);
+      console.log(`[Resilient] Gave ${username} supplies via RCON`);
+
       await rcon.end();
     } catch (err) {
-      console.warn(`[Resilient] RCON teleport failed: ${err.message}, trying walk fallback`);
-      // Walk toward dock area as fallback
-      const pos = this.bot.entity?.position;
-      if (pos) {
-        const dx = 100 - pos.x;
-        const dz = 100 - pos.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist > 2) {
-          this.bot.setControlState('forward', true);
-          this.bot.lookAt(this.bot.entity.position.offset(dx / dist, 0, dz / dist));
-          setTimeout(() => {
-            this.bot.setControlState('forward', false);
-            this.startFallbackScript();
-          }, 5000);
-          return;
-        }
-      }
+      console.error(`[Resilient] RCON failed: ${err.message}`);
+      // Force exit - night-shift daemon will restart
+      console.error('[Resilient] Forcing exit for daemon restart...');
+      process.exit(1);
     }
 
     // Wait for teleport to settle, then restart fishing
-    setTimeout(() => this.startFallbackScript(), 2000);
+    setTimeout(() => this.startFallbackScript(), 3000);
   }
 
   /**
    * Start an emergency fallback script
+   * Tries to restart the current script or use an emergency script
    */
   startFallbackScript() {
+    console.log('[Resilient] Starting fallback script...');
+
+    // First, try to restart the current script runner
+    if (this.runner._currentScript) {
+      console.log('[Resilient] Restarting current script...');
+      this.runner.run(this.runner._currentScript);
+      return;
+    }
+
+    // Use registered emergency scripts
     if (this.emergencyScripts.length > 0) {
       const script = this.emergencyScripts[Math.floor(Math.random() * this.emergencyScripts.length)];
       this.runner.run?.(script);
-    } else {
-      // Built-in emergency: look around, then try fishing
-      try {
-        this.bot.lookAt(this.bot.entity.position.offset(0, 0, -5));
-        setTimeout(() => {
-          const rod = this.bot.inventory?.items()?.find(i => i.name.includes('fishing_rod'));
-          if (rod) {
-            this.bot.equip(rod, 'hand').catch(() => {});
-            setTimeout(() => this.bot.fish().catch(() => {}), 1000);
-          }
-        }, 2000);
-      } catch {}
+      return;
     }
+
+    // Last resort: simple fishing loop
+    console.log('[Resilient] No scripts available, using direct fishing loop');
+    this._simpleFishLoop();
+  }
+
+  /**
+   * Simple direct fishing loop for emergencies
+   */
+  async _simpleFishLoop() {
+    const tryFish = async () => {
+      if (!this.runner._running) return;
+
+      const rod = this.bot.inventory?.items()?.find(i => i.name.includes('fishing_rod'));
+      if (!rod) {
+        console.error('[Resilient] No rod for emergency fishing');
+        return;
+      }
+
+      try {
+        await this.bot.equip(rod, 'hand');
+
+        // Find water
+        const waterId = this.bot.registry?.blocksByName?.water?.id;
+        if (!waterId) return;
+
+        const water = this.bot.findBlock({ matching: waterId, maxDistance: 20 });
+        if (!water) {
+          console.error('[Resilient] No water for emergency fishing');
+          return;
+        }
+
+        this.bot.lookAt(water.position);
+        await new Promise(r => setTimeout(r, 500));
+
+        await this.bot.fish();
+        console.log('[Resilient] Emergency fish caught');
+      } catch (e) {
+        console.error('[Resilient] Emergency fish error:', e.message);
+      }
+
+      // Loop after delay
+      setTimeout(tryFish, 2000);
+    };
+
+    tryFish();
   }
 
   /**
