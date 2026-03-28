@@ -52,12 +52,14 @@ async function giveSupplies(server) {
   try {
     const { Rcon } = await import('/home/lucineer/projects/craftmind/node_modules/rcon-client');
     const rcon = await Rcon.connect({ host: 'localhost', port: server.rcon, password: RCON_PASSWORD });
+    // Teleport to dock first so bot is near water
+    await rcon.send(`tp ${server.bot} 100 65 100`);
     await rcon.send(`give ${server.bot} fishing_rod 3`);
     await rcon.send(`give ${server.bot} bread 32`);
     await rcon.send(`give ${server.bot} oak_log 16`);
     await rcon.send(`give ${server.bot} stick 16`);
     await rcon.send(`give ${server.bot} string 16`);
-    log(`✅ ${server.bot}: supplies given`);
+    log(`✅ ${server.bot}: teleported to dock + supplies given`);
     await rcon.end();
   } catch (e) {
     log(`❌ ${server.bot}: RCON failed: ${e.message}`);
