@@ -535,29 +535,12 @@ export class ScriptRunner {
           // Equip the rod
           await this.bot.equip(rod, 'hand');
 
-          // Find water nearby (increased range to 20 blocks)
-          const waterId = this.bot.registry.blocksByName.water?.id;
-          if (!waterId) {
-            console.error('[ScriptRunner] Water block ID not found in registry!');
-            this._isFishing = false;
-            break;
-          }
-
-          const waterBlock = this.bot.findBlock({
-            matching: waterId,
-            maxDistance: 20,
-          });
-
-          if (!waterBlock) {
-            console.error(`[ScriptRunner] No water within 20 blocks at pos ${this.bot.entity.position}`);
-            console.error('[ScriptRunner] Bot may have wandered from dock. Stuck detector should teleport back.');
-            this._isFishing = false;
-            await this._wait(5000);
-            break;
-          }
-
-          // Look forward toward water — bot.fish() casts the rod in the look direction
-          // Don't look at the water block directly, just look slightly downward toward water surface
+          // Look forward toward water surface — bot.fish() casts in the look direction
+          // Don't pathfind to water — we should already be at the dock
+          this.bot.look(
+            this.bot.entity.yaw,
+            Math.PI / 6, // ~30 degrees down toward water surface
+          );
           this.bot.look(
             this.bot.entity.yaw,
             Math.PI / 6, // Look ~30 degrees down toward water surface
@@ -576,7 +559,7 @@ export class ScriptRunner {
           const fishBefore = countFishItems();
 
           // Cast with timeout (Minecraft fishing can hang)
-          console.log(`[ScriptRunner] Casting line at water (${waterBlock.position.x.toFixed(1)}, ${waterBlock.position.y.toFixed(1)}, ${waterBlock.position.z.toFixed(1)})...`);
+          console.log(`[ScriptRunner] Casting line...`);
           const fishPromise = this.bot.fish();
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Fishing timeout (90s)')), 90000)
