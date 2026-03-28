@@ -1637,14 +1637,28 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
 
       // ── Cross-Game Integration Hook ─────────────────────────────
       // Hook into script runner's playerCollect event to award currency, track identity, and check achievements
+      // IMPORTANT: Only award for ACTUAL FISH ITEMS (cod, salmon, tropical_fish, pufferfish)
+      // NOT for experience_orb or generic item entities
+      const FISH_ITEM_NAMES = ['cod', 'salmon', 'tropical_fish', 'pufferfish', 'raw_cod', 'raw_salmon'];
       ctx.bot.on('playerCollect', (collector, entity) => {
         if (collector.username === ctx.bot?.username && ctx._economy && ctx._identity && ctx._achievementChecker) {
+          // Check if the collected entity is actually a fish item
+          const entityName = entity?.name?.replace('minecraft:', '') || '';
+          const isActualFish = FISH_ITEM_NAMES.some(fishName => entityName === fishName || entityName.includes(fishName));
+
+          if (!isActualFish) {
+            // Not a fish - skip currency/achievement awards
+            // This prevents awarding currency for experience_orb, generic items, junk, etc.
+            console.log(`[CrossGame] Collected ${entityName} - not a fish, skipping currency award`);
+            return;
+          }
+
           // Award currency for fish catch (1 per fish, 5 for rare fish)
-          const isRare = entity?.name?.includes('salmon') || entity?.name?.includes('tropical');
+          const isRare = entityName.includes('salmon') || entityName.includes('tropical');
           const currencyAmount = isRare ? 5 : 1;
           const botName = ctx.bot?.username || 'Cody';
           ctx._economy.addCurrency(botName, currencyAmount, 'fishing:base');
-          console.log(`[CrossGame] Awarded ${currencyAmount} currency to ${botName} for catching ${entity?.name || 'fish'}`);
+          console.log(`[CrossGame] Awarded ${currencyAmount} currency to ${botName} for catching ${entityName}`);
 
           // Track identity stats
           ctx._identity.recordAction('fishing', 'catch_fish', 'success');

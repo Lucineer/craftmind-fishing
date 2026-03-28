@@ -678,14 +678,38 @@ export class ScriptRunner {
           // Wait a beat before casting
           await this._wait(800);
           if (!this._running) throw new Error('INTERRUPTED');
+
+          // Track fish items in inventory BEFORE fishing
+          const FISH_ITEM_NAMES = ['cod', 'salmon', 'tropical_fish', 'pufferfish', 'raw_cod', 'raw_salmon', 'cooked_cod'];
+          const countFishItems = () => {
+            return this.bot.inventory.items()
+              .filter(i => FISH_ITEM_NAMES.some(fishName => i.name.includes(fishName)))
+              .reduce((sum, item) => sum + item.count, 0);
+          };
+          const fishBefore = countFishItems();
+
           // Cast with timeout (Minecraft fishing can hang in test servers)
           console.log('[ScriptRunner] Casting line...');
           const fishPromise = this.bot.fish();
-          const timeoutPromise = new Promise((_, reject) => 
+          const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Fishing timeout (90s)')), 90000)
           );
           await Promise.race([fishPromise, timeoutPromise]);
-          console.log('[ScriptRunner] Line reeled in');
+
+          // Check inventory AFTER fishing to see if a fish was actually caught
+          await this.bot.waitForItemsToUpdate();
+          const fishAfter = countFishItems();
+          const fishCaught = fishAfter - fishBefore;
+
+          if (fishCaught > 0) {
+            console.log(`[ScriptRunner] Line reeled in — caught ${fishCaught} fish!`);
+            this.context.fishCaught = (this.context.fishCaught || 0) + fishCaught;
+            // Update mood on successful catch
+            this.mood.shift(0.05);
+            this.mood.energy = Math.min(1.0, this.mood.energy + 0.05);
+          } else {
+            console.log(`[ScriptRunner] Line reeled in — no fish caught (junk/XP only)`);
+          }
         } catch (e) {
           if (e.message !== 'INTERRUPTED') {
             console.error('[ScriptRunner] Fish error:', e.message);
