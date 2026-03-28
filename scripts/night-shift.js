@@ -50,10 +50,10 @@ function isServerAlive(port) {
 
 async function giveSupplies(server) {
   try {
-    const { Rcon } = await import('/home/lucineer/projects/craftmind/node_modules/rcon-client');
+    const { Rcon } = await import('/home/lucineer/projects/craftmind/node_modules/rcon-client/lib/index.js');
     const rcon = await Rcon.connect({ host: 'localhost', port: server.rcon, password: RCON_PASSWORD });
     // Teleport to dock first so bot is near water
-    await rcon.send(`tp ${server.bot} 100 65 100`);
+    await rcon.send(`tp @a 100 65 100`);
     await rcon.send(`give ${server.bot} fishing_rod 3`);
     await rcon.send(`give ${server.bot} bread 32`);
     await rcon.send(`give ${server.bot} oak_log 16`);
@@ -66,7 +66,7 @@ async function giveSupplies(server) {
     // Retry once after 10s
     setTimeout(async () => {
       try {
-        const { Rcon } = await import('/home/lucineer/projects/craftmind/node_modules/rcon-client');
+        const { Rcon } = await import('/home/lucineer/projects/craftmind/node_modules/rcon-client/lib/index.js');
         const rcon = await Rcon.connect({ host: 'localhost', port: server.rcon, password: RCON_PASSWORD });
         await rcon.send(`give ${server.bot} fishing_rod 3 bread 32`);
         log(`✅ ${server.bot}: supplies given (retry)`);
