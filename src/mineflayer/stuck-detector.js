@@ -12,7 +12,7 @@ export class StuckDetector {
 
     // Fish tracking
     this.fishHistory = [];
-    this.fishCheckInterval = 5 * 60 * 1000; // 5 minutes
+    this.fishCheckInterval = 2 * 60 * 1000; // 2 minutes (bot should catch fish within 2 min at dock)
     this.consecutiveNoFishChecks = 0;
 
     // Chat tracking (for loop detection)
