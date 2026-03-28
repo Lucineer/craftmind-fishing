@@ -1338,8 +1338,8 @@ const fishingPlugin = {
           // Retry teleport multiple times — bot may not be fully registered yet
           for (let i = 0; i < 3; i++) {
             try {
-              await rconTeleport(rconPort, name, 100, 66, 97);
-              console.log(`[FishingPlugin] Teleported ${name} to dock (attempt ${i+1})`);
+              await rconTeleport(rconPort, '@a', 100, 65, 100);
+              console.log(`[FishingPlugin] Teleported to dock (attempt ${i+1})`);
               break;
             } catch (tpErr) {
               console.warn(`[FishingPlugin] TP attempt ${i+1} failed: ${tpErr.message}`);
@@ -1783,26 +1783,15 @@ Current mood: ${JSON.stringify(personality.mood.snapshot())}`, 10);
               scriptRunner?.loadRandomScript?.();
 
             } else if (stuckInfo.level === 2) {
-              // Level 2: Re-pathfind to water + RCON give fishing_rod
-              console.log('[StuckDetector] Recovery Level 2: Re-pathfind to water + resupply');
+              // Level 2: Teleport to dock + resupply (don't pathfind — causes wandering)
+              console.log('[StuckDetector] Recovery Level 2: TP to dock + resupply');
+              await rconTeleport(rconPort, '@a', 100, 65, 100);
               await giveSupplies(rconPort, ctx.bot?.username || '@p');
-
-              // Pathfind to nearest water
-              if (ctx.bot?.pathfinder) {
-                const waterBlock = ctx.bot.findBlocks({
-                  matching: ctx.bot.registry.blocksByName.water?.id,
-                  maxDistance: 32,
-                  count: 1
-                })[0];
-                if (waterBlock) {
-                  ctx.bot.pathfinder.setGoal(new (getGoals(ctx).GoalBlock)(waterBlock.x, waterBlock.y, waterBlock.z));
-                }
-              }
 
             } else if (stuckInfo.level === 3) {
               // Level 3: TP to safe spawn, reset counter
               console.log('[StuckDetector] Recovery Level 3: TP to safe spawn + full reset');
-              await rconTeleport(rconPort, ctx.bot?.username || '@p', 100, 66, 97);
+              await rconTeleport(rconPort, '@a', 100, 66, 97);
 
               stuckDetector.reset();
               scriptRunner?.loadRandomScript?.();
