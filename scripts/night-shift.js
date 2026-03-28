@@ -20,7 +20,7 @@ const SERVERS = [
 const RCON_PASSWORD = 'fishing42';
 const PLUGIN = '/home/lucineer/projects/craftmind-fishing/src/mineflayer/fishing-plugin.js';
 const CHECK_INTERVAL = 60000;
-const ROD_GIVE_DELAY = 20000; // 20s after bot start (enough time to fully spawn)
+const ROD_GIVE_DELAY = 5000; // 5s after bot start (before script starts at 8s)
 
 function log(msg) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
