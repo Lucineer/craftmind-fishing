@@ -17,6 +17,7 @@ import { ScriptRegistry, getPinnedScript } from './scripts/registry.js';
 import { VisionSystem } from './vision.js';
 import { ResilientController, EMERGENCY_SCRIPTS } from './resilient-controller.js';
 import { StuckDetector } from './stuck-detector.js';
+import { registerGameCommands } from './game-commands.js';
 
 // ── AI Modules ───────────────────────────────────────────────────────────────
 
@@ -1424,6 +1425,13 @@ const fishingPlugin = {
     await economy.load();
     ctx._economy = economy;
     console.log('[FishingPlugin] Cross-game economy system loaded');
+
+    // Wire game commands (NPC, shop, quests, leaderboard)
+    try {
+      registerGameCommands(fishingCommands, ctx);
+    } catch (e) {
+      console.error('[FishingPlugin] Failed to register game commands:', e.message);
+    }
 
     // Identity system for personality tracking
     const botName = ctx.bot?.username || 'Cody';
