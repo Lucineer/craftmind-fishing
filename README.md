@@ -1,59 +1,54 @@
-# craftmind-fishing
+# CraftMind Fishing
 
-A fleet of autonomous agents that fish on Minecraft servers. It runs over standard RCON, requiring no client or server mods.
+You can automate fishing on Minecraft servers without mods or plugins. This system connects over standard RCON and runs autonomous agents with configurable behaviors.
 
-Unlike timer-based macros, each agent has distinct behaviors and simulated patience. They can miss casts, react to weather, and act independently, making their activity less predictable.
+Most fishing automation relies on precise timing, which can feel robotic and is often detectable. This approach introduces variability and personality, making agent actions less predictable and more natural.
 
----
+## How it works
 
-## What it does
+- Connects to any vanilla Minecraft server (1.13+) with RCON enabled
+- Agents operate with variable timing and occasional mistakes, similar to human players
+- Configurable behavior patterns control when and how each agent fishes
+- Built for the Cocapn Fleet protocol, allowing multiple agents across different servers
+- Zero dependencies—runs on modern JavaScript environments
 
-This is a Node.js module that connects to a Minecraft server's RCON port. It manages multiple concurrent fishing agents. Each agent operates on a loop: cast, wait for a bite, reel in, and react. Their success rates and behaviors vary based on simple, configurable scripts.
+**Limitation:** Requires RCON access and depends on server chat/event logs for full functionality. Some server configurations may limit available data.
 
----
+## Quick start
 
-## Key Features
+1. Fork this repository (the code is designed to be modified)
+2. Add your RCON credentials to `config.js`
+3. Run `node index.js`
+4. Edit a personality file in `/personalities/` to adjust agent behavior
 
-*   **Vanilla RCON Integration:** Connects to any Minecraft server with RCON enabled. No mods required.
-*   **Configurable Personalities:** Includes several agent scripts with different behavioral traits, such as reaction speed and patience.
-*   **Concurrent Agents:** Orchestrates multiple independent agents from a single process.
-*   **Fleet Compatible:** Can emit and listen for events using the Cocapn Fleet protocol, allowing agents to communicate.
-*   **Fork-First Design:** The code is structured to be easily modified. You can edit existing personalities or write new ones.
+## Configuration
 
-**Limitation:** Requires the Minecraft server's RCON port to be accessible and credentials to be configured.
+Personality files define how agents behave. Each is a JavaScript module that exports parameters controlling:
+- Casting and reeling timing variations
+- Reaction speeds and failure rates
+- Environmental preferences (time of day, weather)
+- Idle behaviors and attention spans
 
----
+You can modify existing personalities or create new ones without understanding the entire system.
 
-## Quick Start
+## Architecture
 
-1.  Fork this repository.
-2.  In the configuration, add your server's RCON host, port, and password.
-3.  Select which agent personalities to enable.
-4.  Run `node index.js`.
+This is a Node.js ESM module that maintains RCON connections and parses server logs. Each agent runs in isolation with its own state. The system emits fishing events to the Cocapn Fleet and can respond to broadcast commands.
 
----
+As a Fleet Stage 2 Expander agent, it's designed to work within distributed agent networks while maintaining independent operation.
 
-## Live Example
+## Try the demo
 
-A public test fleet is running at [https://the-fleet.casey-digennaro.workers.dev](https://the-fleet.casey-digennaro.workers.dev). You can view agent activity logs there.
-
----
-
-## Modify and Extend
-
-Agent personalities are defined in simple JavaScript. You can edit reaction logic, success thresholds, and action sequences. The structure is designed for customization.
-
----
+A public test agent is available at:  
+https://the-fleet.casey-digennaro.workers.dev/fishing
 
 ## Contributing
 
-This project follows a fork-first philosophy. Make your changes, run them on your own fork, and share a pull request when you have something working.
+Follow the fork-first philosophy. Make changes in your own fork, test with your server, and submit PRs for substantively improved functionality.
 
----
+MIT License.
 
-## License
-
-MIT License. Superinstance & Lucineer (DiGennaro et al.).
+Superinstance & Lucineer (DiGennaro et al.).
 
 ---
 
