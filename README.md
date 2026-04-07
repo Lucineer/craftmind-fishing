@@ -1,55 +1,63 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Lucineer/capitaine/master/docs/capitaine-logo.jpg" alt="Capitaine" width="120">
-</p>
+# craftmind-fishing
 
-<h1 align="center">craftmind-fishing</h1>
+A fleet of autonomous agents that fish on Minecraft servers. It runs over standard RCON, requiring no client or server mods.
 
-<p align="center">AI-powered Minecraft fishing mod — intelligent fish behavior, dynamic ecosystems.</p>
+Unlike timer-based macros, each agent has distinct behaviors and simulated patience. They can miss casts, react to weather, and act independently, making their activity less predictable.
 
 ---
 
-**CraftMind ecosystem** · Part of the [Lucineer fleet](https://github.com/orgs/Lucineer/repositories)
+## What it does
 
-## The Fleet
+This is a Node.js module that connects to a Minecraft server's RCON port. It manages multiple concurrent fishing agents. Each agent operates on a loop: cast, wait for a bite, reel in, and react. Their success rates and behaviors vary based on simple, configurable scripts.
 
+---
 
-<details>
-<summary><strong>⚓ The Fleet</strong></summary>
+## Key Features
 
-**Flagship vessels**
+*   **Vanilla RCON Integration:** Connects to any Minecraft server with RCON enabled. No mods required.
+*   **Configurable Personalities:** Includes several agent scripts with different behavioral traits, such as reaction speed and patience.
+*   **Concurrent Agents:** Orchestrates multiple independent agents from a single process.
+*   **Fleet Compatible:** Can emit and listen for events using the Cocapn Fleet protocol, allowing agents to communicate.
+*   **Fork-First Design:** The code is structured to be easily modified. You can edit existing personalities or write new ones.
 
-- [cocapn.ai](https://github.com/Lucineer/capitaine)
-- [personallog.ai](https://github.com/Lucineer/personallog-ai)
-- [businesslog.ai](https://github.com/Lucineer/businesslog-ai)
-- [studylog.ai](https://github.com/Lucineer/studylog-ai)
-- [makerlog.ai](https://github.com/Lucineer/makerlog-ai)
-- [playerlog.ai](https://github.com/Lucineer/playerlog-ai)
-- [dmlog.ai](https://github.com/Lucineer/dmlog-ai)
-- [reallog.ai](https://github.com/Lucineer/reallog-ai)
-- [deckboss.ai](https://github.com/Lucineer/deckboss-ai)
+**Limitation:** Requires the Minecraft server's RCON port to be accessible and credentials to be configured.
 
-**Fleet services**
+---
 
-- [Fleet Catalog](https://github.com/Lucineer/capitaine/blob/master/docs/fleet/FLEET.md)
-- [Git Agent (full)](https://github.com/Lucineer/git-agent)
-- [Cocapn Lite (minimal)](https://github.com/Lucineer/cocapn-lite)
-- [Fleet Orchestrator](https://github.com/Lucineer/fleet-orchestrator)
-- [Dead Reckoning Engine](https://github.com/Lucineer/dead-reckoning-engine)
-- [Dream Engine](https://github.com/Lucineer/dream-engine)
-- [Seed UI (5 layers)](https://github.com/Lucineer/seed-ui)
+## Quick Start
 
-**For power users**
+1.  Fork this repository.
+2.  In the configuration, add your server's RCON host, port, and password.
+3.  Select which agent personalities to enable.
+4.  Run `node index.js`.
 
-- [Cocapn Lite (tabula rasa)](https://github.com/Lucineer/cocapn-lite)
-- [Cocapn (core platform)](https://github.com/Lucineer/cocapn)
-- [ZeroClaw (framework)](https://github.com/Lucineer/zeroclaw)
+---
 
-[View all 106 repos →](https://github.com/orgs/Lucineer/repositories)
-[Fleet manifest →](https://github.com/Lucineer/capitaine/blob/master/docs/fleet/FLEET.md)
+## Live Example
 
-</details>
+A public test fleet is running at [https://the-fleet.casey-digennaro.workers.dev](https://the-fleet.casey-digennaro.workers.dev). You can view agent activity logs there.
 
+---
+
+## Modify and Extend
+
+Agent personalities are defined in simple JavaScript. You can edit reaction logic, success thresholds, and action sequences. The structure is designed for customization.
+
+---
+
+## Contributing
+
+This project follows a fork-first philosophy. Make your changes, run them on your own fork, and share a pull request when you have something working.
+
+---
 
 ## License
 
-MIT · Superinstance & Lucineer (DiGennaro et al.)
+MIT License. Superinstance & Lucineer (DiGennaro et al.).
+
+---
+
+<div align="center">
+  <a href="https://the-fleet.casey-digennaro.workers.dev">The Fleet</a> · 
+  <a href="https://cocapn.ai">Cocapn</a>
+</div>
